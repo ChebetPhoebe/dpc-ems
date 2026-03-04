@@ -2,14 +2,11 @@
   "name": "dpc-ems",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://ChebetPhoebe.github.io/dpc-ems",
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
-    "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^13.5.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "@supabase/supabase-js": "^2.39.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
@@ -17,12 +14,13 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
-      "react-app",
-      "react-app/jest"
+      "react-app"
     ]
   },
   "browserslist": {
@@ -41,12 +39,3 @@
     "gh-pages": "^6.3.0"
   }
 }
-{
-  "homepage": "https://ChebetPhoebe.github.io/dpc-ems",
-  "scripts": {
-    "predeploy": "npm run build",
-   "deploy": "gh-pages -d build"
-  }
-} 
-
-

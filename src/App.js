@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from './supabaseClient';
 
-// ... keep all your constants, colors, components ...import { useState, useEffect } from "react";
-
 // ── GOOGLE FONTS ──────────────────────────────────────────────────────────────
 (() => {
   const l = document.createElement("link");
@@ -12,13 +10,6 @@ import { supabase } from './supabaseClient';
 })();
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
-const SUPER_ADMIN = {
-  id: "SA-PHOEBE-001", name: "Phoebe Chebet",
-  email: "phoebe.chebet@mict.go.ke", role: "Super Administrator",
-  password: "Admin@2024!", avatar: "PC", isSuper: true,
-  createdAt: "2024-01-01T00:00:00.000Z"
-};
-
 const COUNTIES = ["Mombasa","Kwale","Kilifi","Tana River","Lamu","Taita-Taveta","Garissa","Wajir","Mandera","Marsabit","Isiolo","Meru","Tharaka-Nithi","Embu","Kitui","Machakos","Makueni","Nyandarua","Nyeri","Kirinyaga","Murang'a","Kiambu","Turkana","West Pokot","Samburu","Trans-Nzoia","Uasin Gishu","Elgeyo-Marakwet","Nandi","Baringo","Laikipia","Nakuru","Narok","Kajiado","Kericho","Bomet","Kakamega","Vihiga","Bungoma","Busia","Siaya","Kisumu","Homa Bay","Migori","Kisii","Nyamira","Nairobi"];
 const JOB_GRADES = ["A","B","C","D","E","F","G","H","J","K","L","M","N","P","Q","R","S","T","U","V","W"];
 const EDUCATION_LEVELS = ["PhD / Doctorate","Masters Degree","Bachelors Degree","Higher National Diploma","Diploma","Certificate","Kenya Certificate of Secondary Education (KCSE)","Kenya Certificate of Primary Education (KCPE)"];
@@ -38,12 +29,6 @@ const C = {
   text:"#1a202c", muted:"#64748b",
   success:"#059669", error:"#dc2626", warn:"#d97706", info:"#2563eb",
   border:"#d1d9e6"
-};
-
-// ── STORAGE ───────────────────────────────────────────────────────────────────
-const db = {
-  get: async (k) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  set: async (k, v) => { try { await window.storage.set(k, JSON.stringify(v)); return true; } catch { return false; } }
 };
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -69,7 +54,7 @@ const emptyEmp = () => ({
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
 });
 
-const emptyAdmin = () => ({ name: "", email: "", role: "Admin", password: "" });
+const emptyAdmin = () => ({ name: "", email: "", role: "Admin" });
 
 // ── SHARED STYLES ─────────────────────────────────────────────────────────────
 const S = {
@@ -152,11 +137,9 @@ const LoginPage = ({ onLogin }) => {
   return (
     <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 60%, #0f2f5c 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'DM Sans',sans-serif" }}>
       <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px rgba(196,147,42,0.15)!important;outline:none!important}`}</style>
-      {/* Background pattern */}
       <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 20% 80%, rgba(196,147,42,0.05) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(30,58,110,0.3) 0%, transparent 50%)", pointerEvents:"none" }} />
       
       <div style={{ background:C.white, borderRadius:24, overflow:"hidden", width:"100%", maxWidth:440, boxShadow:"0 40px 80px rgba(0,0,0,0.5)", position:"relative" }}>
-        {/* Header */}
         <div style={{ background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, padding:"40px 40px 32px", textAlign:"center" }}>
           <div style={{ width:76, height:76, borderRadius:"50%", background:`linear-gradient(135deg, ${C.gold}, ${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px", fontSize:32, boxShadow:"0 4px 20px rgba(196,147,42,0.3)" }}>🏛️</div>
           <div style={{ color:C.gold, fontSize:10, fontWeight:700, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Republic of Kenya</div>
@@ -167,7 +150,6 @@ const LoginPage = ({ onLogin }) => {
             <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, marginTop:4, letterSpacing:1, textTransform:"uppercase" }}>Employee Management System</div>
           </div>
         </div>
-        {/* Form */}
         <div style={{ padding:"32px 40px 36px" }}>
           <div style={{ fontSize:22, fontWeight:700, color:C.navy, marginBottom:4, fontFamily:"'Playfair Display',serif" }}>Administrator Sign In</div>
           <div style={{ color:C.muted, fontSize:13, marginBottom:28 }}>Secure access for authorized personnel only</div>
@@ -190,12 +172,6 @@ const LoginPage = ({ onLogin }) => {
               {loading ? "Authenticating..." : "Sign In to System"}
             </button>
           </form>
-          <div style={{ marginTop:24, padding:"14px 16px", background:"#f8fafc", borderRadius:10, border:`1px solid ${C.border}` }}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.muted, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Default Super Admin Credentials</div>
-            <div style={{ fontSize:12, color:C.navy }}>📧 phoebe.chebet@mict.go.ke</div>
-            <div style={{ fontSize:12, color:C.navy }}>🔑 Admin@2024!</div>
-            <div style={{ fontSize:11, color:C.muted, marginTop:6 }}>Please change your password after first login.</div>
-          </div>
         </div>
       </div>
     </div>
@@ -320,7 +296,6 @@ const Dashboard = ({ employees, admins, activity, navigate, admin }) => {
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr", gap:20, marginBottom:20 }}>
-        {/* Dept breakdown */}
         <div style={S.card}>
           <div style={S.secHead}>Employees by Department</div>
           {deptStats.length ? deptStats.map(([d,c]) => (
@@ -347,7 +322,6 @@ const Dashboard = ({ employees, admins, activity, navigate, admin }) => {
           )}
         </div>
 
-        {/* Activity */}
         <div style={S.card}>
           <div style={S.secHead}>Recent Activity</div>
           {activity.length ? activity.slice(0,7).map(a => (
@@ -362,7 +336,6 @@ const Dashboard = ({ employees, admins, activity, navigate, admin }) => {
         </div>
       </div>
 
-      {/* Registration Link */}
       <div style={{ ...S.card, background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy3} 100%)`, marginBottom:0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
           <div style={{ flex:1 }}>
@@ -519,7 +492,6 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
         </div>
       </div>
 
-      {/* Tab bar */}
       <div style={{ background:C.white, borderRadius:"12px 12px 0 0", padding:"10px 14px", borderBottom:`2px solid ${C.gold}`, display:"flex", gap:4, flexWrap:"wrap", boxShadow:"0 2px 16px rgba(13,31,60,0.08)" }}>
         {TABS.map((t,i)=><button key={i} style={tabBtn(i)} onClick={()=>setTab(i)}>{i+1}. {t}</button>)}
       </div>
@@ -681,7 +653,6 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
         </div>
       </div>
 
-      {/* Profile header */}
       <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy3} 100%)`, borderRadius:14, padding:"24px 28px", marginBottom:20, display:"flex", gap:22, alignItems:"center", boxShadow:"0 4px 24px rgba(13,31,60,0.2)" }}>
         <div style={{ width:76, height:76, borderRadius:"50%", background:avColor(`${e.firstName}${e.lastName}`), display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, fontWeight:800, color:C.white, flexShrink:0, border:`3px solid ${C.gold}`, boxShadow:`0 0 0 6px rgba(196,147,42,0.15)` }}>
           {initials(fullName)}
@@ -774,11 +745,10 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
 const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
   const [form, setForm] = useState(emptyAdmin());
   const [showForm, setShowForm] = useState(false);
-  const [showPass, setShowPass] = useState(false);
   const set = (f,v) => setForm(p=>({...p,[f]:v}));
 
   const save = () => {
-    if(!form.name.trim()||!form.email.trim()||!form.password.trim()){alert("Name, email, and password are required.");return;}
+    if(!form.name.trim()||!form.email.trim()){alert("Name and email are required.");return;}
     if(admins.find(a=>a.email.toLowerCase()===form.email.toLowerCase()&&a.id!==form.id)){alert("An administrator with this email already exists.");return;}
     onSave(form);
     setForm(emptyAdmin());
@@ -802,12 +772,6 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
             <Field label="Full Name" required half><Inp value={form.name} onChange={v=>set("name",v)} placeholder="e.g. John Kamau" /></Field>
             <Field label="Email Address" required half><Inp type="email" value={form.email} onChange={v=>set("email",v)} placeholder="john.kamau@mict.go.ke" /></Field>
             <Field label="Role / Access Level" half><Sel value={form.role} onChange={v=>set("role",v)} options={["Admin","HR Officer","Records Officer","Viewer"]} /></Field>
-            <Field label="Password" required half>
-              <div style={{ position:"relative" }}>
-                <Inp type={showPass?"text":"password"} value={form.password} onChange={v=>set("password",v)} placeholder="Set a strong password" />
-                <button type="button" onClick={()=>setShowPass(s=>!s)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:C.muted }}>{showPass?"🙈":"👁"}</button>
-              </div>
-            </Field>
           </div>
           <div style={{ display:"flex", gap:8, marginTop:18 }}>
             <button onClick={save} style={S.btn("primary")}>Save Administrator</button>
@@ -833,18 +797,18 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
                     <div style={{ width:38, height:38, borderRadius:"50%", background:avColor(a.name), display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:C.white, flexShrink:0 }}>{initials(a.name)}</div>
                     <div>
                       <div style={{ fontWeight:600 }}>{a.name}</div>
-                      {a.isSuper && <div style={{ fontSize:11, color:C.gold, fontWeight:700 }}>⭐ SUPER ADMIN</div>}
-                      {a.id===currentAdmin?.id && !a.isSuper && <div style={{ fontSize:11, color:C.info, fontWeight:600 }}>• Current Session</div>}
+                      {a.is_super && <div style={{ fontSize:11, color:C.gold, fontWeight:700 }}>⭐ SUPER ADMIN</div>}
+                      {a.id===currentAdmin?.id && !a.is_super && <div style={{ fontSize:11, color:C.info, fontWeight:600 }}>• Current Session</div>}
                     </div>
                   </div>
                 </td>
                 <td style={{ padding:"14px 18px", color:C.muted }}>{a.email}</td>
                 <td style={{ padding:"14px 18px" }}><span style={S.badge("Active")}>{a.role}</span></td>
-                <td style={{ padding:"14px 18px", color:C.muted, fontSize:13 }}>{fmtDate(a.createdAt)}</td>
+                <td style={{ padding:"14px 18px", color:C.muted, fontSize:13 }}>{fmtDate(a.created_at)}</td>
                 <td style={{ padding:"14px 18px" }}>
-                  {!a.isSuper && a.id!==currentAdmin?.id
+                  {!a.is_super && a.id!==currentAdmin?.id
                     ? <button onClick={()=>{if(window.confirm(`Remove ${a.name} as administrator? They will lose system access.`))onRemove(a.id);}} style={{ ...S.btn("danger"), padding:"6px 14px", fontSize:12 }}>Remove Access</button>
-                    : <span style={{ color:C.muted, fontSize:12 }}>{a.isSuper?"Protected (Super Admin)":"(Your Account)"}</span>
+                    : <span style={{ color:C.muted, fontSize:12 }}>{a.is_super?"Protected (Super Admin)":"(Your Account)"}</span>
                   }
                 </td>
               </tr>
@@ -903,7 +867,6 @@ const PublicRegistration = ({ onSubmit, employees }) => {
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'DM Sans',sans-serif" }}>
       <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px rgba(196,147,42,0.12)!important;outline:none!important}`}</style>
       
-      {/* Header */}
       <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy3} 100%)`, padding:"18px 28px", display:"flex", alignItems:"center", gap:16 }}>
         <div style={{ width:52, height:52, borderRadius:12, background:`linear-gradient(135deg,${C.gold},${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>🏛️</div>
         <div>
@@ -919,7 +882,6 @@ const PublicRegistration = ({ onSubmit, employees }) => {
           <div style={{ color:C.muted, fontSize:13 }}>Please complete all sections accurately. Your submission will be reviewed by the HR Administrator. Fields marked <span style={{color:C.error}}>*</span> are required.</div>
         </div>
 
-        {/* Progress tabs */}
         <div style={{ display:"flex", gap:4, marginBottom:0, overflowX:"auto", paddingBottom:4 }}>
           {TABS.map((t,i) => (
             <div key={i} onClick={()=>setTab(i)} style={{ flex:"1 0 auto", minWidth:80, textAlign:"center", padding:"9px 10px", background:i<tab?`${C.success}`:i===tab?C.gold:"#e2e8f0", borderRadius:8, fontSize:11, fontWeight:700, color:i<=tab?C.white:C.muted, cursor:"pointer", whiteSpace:"nowrap", letterSpacing:0.3 }}>
@@ -1052,124 +1014,408 @@ export default function App() {
   const [activity, setActivity] = useState([]);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
-    if (window.location.hash === "#register") { setView("register"); return; }
-    init();
-    // Poll for data updates every 30s (multi-machine sync)
-    const interval = setInterval(async () => {
-      const latestEmps = await db.get("dpc_employees");
-      const latestAct = await db.get("dpc_activity");
-      if (latestEmps) setEmployees(latestEmps);
-      if (latestAct) setActivity(latestAct);
-    }, 30000);
-    return () => clearInterval(interval);
+    if (window.location.hash === "#register") { 
+      setView("register"); 
+      return; 
+    }
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchUserData(session.user);
+      } else {
+        setView("login");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        fetchUserData(session.user);
+      } else {
+        setAdmin(null);
+        setView("login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const init = async () => {
-    const storedAdmins = await db.get("dpc_admins");
-    const storedEmps = await db.get("dpc_employees");
-    const storedAct = await db.get("dpc_activity");
-    const session = await db.get("dpc_session");
-    const adminsList = storedAdmins || [SUPER_ADMIN];
-    if (!storedAdmins) await db.set("dpc_admins", adminsList);
-    setAdmins(adminsList);
-    setEmployees(storedEmps || []);
-    setActivity(storedAct || []);
-    if (session) {
-      const found = adminsList.find(a => a.id === session.id);
-      if (found) { setAdmin(found); setView("dashboard"); return; }
+  const fetchUserData = async (user) => {
+    try {
+      const { data: adminData, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+
+      if (adminError) throw adminError;
+      
+      setAdmin(adminData);
+      
+      const { data: employeesData, error: empError } = await supabase
+        .from('employees')
+        .select(`
+          *,
+          education(*),
+          professional_bodies(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (empError) throw empError;
+      
+      const transformedEmps = employeesData.map(e => ({
+        id: e.id,
+        personalNumber: e.personal_number,
+        firstName: e.first_name,
+        middleName: e.middle_name,
+        lastName: e.last_name,
+        dob: e.dob,
+        gender: e.gender,
+        nationalId: e.national_id,
+        kraPin: e.kra_pin,
+        nssfNo: e.nssf_no,
+        nhifNo: e.nhif_no,
+        phone: e.phone,
+        email: e.email,
+        maritalStatus: e.marital_status,
+        nationality: e.nationality,
+        photo: e.photo,
+        employmentDate: e.employment_date,
+        jobTitle: e.job_title,
+        jobGrade: JOB_GRADES[e.job_grade_id - 1],
+        employmentType: EMP_TYPES[e.employment_type_id - 1],
+        department: DEPARTMENTS[e.department_id - 1],
+        station: e.station,
+        county: COUNTIES[e.county_id - 1],
+        region: REGIONS[e.region_id - 1],
+        physicalAddress: e.physical_address,
+        workStation: e.work_station,
+        education: e.education.map(ed => ({
+          id: ed.id,
+          level: ed.level,
+          institution: ed.institution,
+          fieldOfStudy: ed.field_of_study,
+          yearCompleted: ed.year_completed
+        })),
+        professionalBodies: e.professional_bodies.map(pb => ({
+          id: pb.id,
+          bodyName: pb.body_name,
+          membershipNo: pb.membership_no,
+          registrationDate: pb.registration_date
+        })),
+        yearsOfExperience: e.years_of_experience,
+        previousEmployer: e.previous_employer,
+        previousRole: e.previous_role,
+        previousDuration: e.previous_duration,
+        emergencyName: e.emergency_name,
+        emergencyRelationship: e.emergency_relationship,
+        emergencyPhone: e.emergency_phone,
+        status: e.status,
+        submittedBy: e.submitted_by,
+        notes: e.notes,
+        createdAt: e.created_at,
+        updatedAt: e.updated_at
+      }));
+      
+      setEmployees(transformedEmps);
+      
+      const { data: allAdmins, error: allAdminsError } = await supabase
+        .from('admins')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (!allAdminsError) {
+        setAdmins(allAdmins);
+      }
+      
+      const { data: logs, error: logsError } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(150);
+        
+      if (!logsError) {
+        setActivity(logs);
+      }
+      
+      setView("dashboard");
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      showToast("Error loading data", "error");
     }
-    setView("login");
   };
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
-
-  const log = async (action, details, who) => {
-    const entry = { id:uid(), action, details, adminName:(who||admin)?.name||"System", timestamp:new Date().toISOString() };
-    const current = await db.get("dpc_activity") || [];
-    const updated = [entry, ...current].slice(0, 150);
-    setActivity(updated);
-    await db.set("dpc_activity", updated);
+  const showToast = (msg, type = "success") => { 
+    setToast({ msg, type }); 
+    setTimeout(() => setToast(null), 3500); 
   };
 
-  const navigate = (v, data = null) => { setSelected(data); setView(v); window.scrollTo(0, 0); };
-
-  const login = async (email, pass) => {
-    const storedAdmins = await db.get("dpc_admins") || [SUPER_ADMIN];
-    const found = storedAdmins.find(a => a.email.toLowerCase() === email.toLowerCase() && a.password === pass);
-    if (found) { setAdmin(found); setAdmins(storedAdmins); await db.set("dpc_session", {id:found.id}); await log("Login", `${found.name} signed in`, found); setView("dashboard"); return true; }
-    return false;
+  const logActivity = async (action, details) => {
+    try {
+      const { error } = await supabase
+        .from('activity_logs')
+        .insert([{
+          action,
+          details,
+          admin_name: admin?.name,
+          admin_id: admin?.id,
+          timestamp: new Date().toISOString()
+        }]);
+      if (error) console.error('Error logging activity:', error);
+    } catch (err) {
+      console.error('Failed to log activity:', err);
+    }
   };
 
-  const logout = async () => { await db.set("dpc_session", null); setAdmin(null); setView("login"); };
+  const navigate = (v, data = null) => { 
+    setSelected(data); 
+    setView(v); 
+    window.scrollTo(0, 0); 
+  };
+
+  const login = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        console.error('Login error:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Login exception:', err);
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const saveEmployee = async (emp) => {
-    const current = await db.get("dpc_employees") || [];
-    const isNew = !emp.id || !current.find(e => e.id === emp.id);
-    let updated;
-    if (isNew) {
-      if (!emp.id) emp.id = uid();
-      if (!emp.personalNumber) emp.personalNumber = genPN(current);
-      updated = [...current, emp];
-      await log("Employee Added", `${emp.firstName} ${emp.lastName} (${emp.personalNumber}) added to system`);
-    } else {
-      emp.updatedAt = new Date().toISOString();
-      updated = current.map(e => e.id === emp.id ? emp : e);
-      await log("Employee Updated", `${emp.firstName} ${emp.lastName} (${emp.personalNumber}) record updated`);
+    try {
+      const employeeData = {
+        personal_number: emp.personalNumber,
+        first_name: emp.firstName,
+        middle_name: emp.middleName,
+        last_name: emp.lastName,
+        dob: emp.dob || null,
+        gender: emp.gender || null,
+        national_id: emp.nationalId,
+        kra_pin: emp.kraPin || null,
+        nssf_no: emp.nssfNo || null,
+        nhif_no: emp.nhifNo || null,
+        phone: emp.phone || null,
+        email: emp.email || null,
+        marital_status: emp.maritalStatus || null,
+        nationality: emp.nationality || 'Kenyan',
+        photo: emp.photo || null,
+        employment_date: emp.employmentDate || null,
+        job_title: emp.jobTitle || null,
+        job_grade_id: emp.jobGrade ? JOB_GRADES.indexOf(emp.jobGrade) + 1 : null,
+        employment_type_id: emp.employmentType ? EMP_TYPES.indexOf(emp.employmentType) + 1 : null,
+        department_id: emp.department ? DEPARTMENTS.indexOf(emp.department) + 1 : null,
+        station: emp.station || null,
+        county_id: emp.county ? COUNTIES.indexOf(emp.county) + 1 : null,
+        region_id: emp.region ? REGIONS.indexOf(emp.region) + 1 : null,
+        physical_address: emp.physicalAddress || null,
+        work_station: emp.workStation || null,
+        years_of_experience: emp.yearsOfExperience ? parseInt(emp.yearsOfExperience) : null,
+        previous_employer: emp.previousEmployer || null,
+        previous_role: emp.previousRole || null,
+        previous_duration: emp.previousDuration || null,
+        emergency_name: emp.emergencyName || null,
+        emergency_relationship: emp.emergencyRelationship || null,
+        emergency_phone: emp.emergencyPhone || null,
+        status: emp.status || 'Active',
+        submitted_by: emp.submittedBy || 'admin',
+        notes: emp.notes || null,
+        updated_at: new Date().toISOString()
+      };
+
+      let employeeId = emp.id;
+
+      if (!emp.id) {
+        employeeData.created_at = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('employees')
+          .insert([employeeData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        employeeId = data.id;
+        
+        await logActivity('Employee Added', `${emp.firstName} ${emp.lastName} (${emp.personalNumber}) added to system`);
+      } else {
+        const { error } = await supabase
+          .from('employees')
+          .update(employeeData)
+          .eq('id', emp.id);
+
+        if (error) throw error;
+        
+        await supabase.from('education').delete().eq('employee_id', emp.id);
+        await supabase.from('professional_bodies').delete().eq('employee_id', emp.id);
+        
+        await logActivity('Employee Updated', `${emp.firstName} ${emp.lastName} (${emp.personalNumber}) record updated`);
+      }
+
+      if (emp.education && emp.education.length) {
+        const eduInserts = emp.education
+          .filter(e => e.level || e.institution)
+          .map(e => ({
+            employee_id: employeeId,
+            level: e.level || null,
+            institution: e.institution || null,
+            field_of_study: e.fieldOfStudy || null,
+            year_completed: e.yearCompleted ? parseInt(e.yearCompleted) : null
+          }));
+        
+        if (eduInserts.length) {
+          const { error } = await supabase.from('education').insert(eduInserts);
+          if (error) console.error('Error saving education:', error);
+        }
+      }
+
+      if (emp.professionalBodies && emp.professionalBodies.length) {
+        const profInserts = emp.professionalBodies
+          .filter(p => p.bodyName)
+          .map(p => ({
+            employee_id: employeeId,
+            body_name: p.bodyName || null,
+            membership_no: p.membershipNo || null,
+            registration_date: p.registrationDate || null
+          }));
+        
+        if (profInserts.length) {
+          const { error } = await supabase.from('professional_bodies').insert(profInserts);
+          if (error) console.error('Error saving professional bodies:', error);
+        }
+      }
+
+      await fetchUserData(session.user);
+      showToast(emp.id ? "✅ Employee updated successfully!" : "✅ Employee added successfully!");
+      navigate("employees");
+    } catch (error) {
+      console.error('Error saving employee:', error);
+      showToast("Error saving employee", "error");
     }
-    setEmployees(updated);
-    await db.set("dpc_employees", updated);
-    showToast(isNew ? "✅ Employee record added successfully!" : "✅ Employee record updated!");
-    navigate("employees");
   };
 
   const deleteEmployee = async (id) => {
-    const current = await db.get("dpc_employees") || employees;
-    const emp = current.find(e => e.id === id);
-    const updated = current.filter(e => e.id !== id);
-    setEmployees(updated);
-    await db.set("dpc_employees", updated);
-    await log("Employee Deleted", `${emp?.firstName} ${emp?.lastName} (${emp?.personalNumber}) removed`);
-    showToast("Employee removed from system.", "info");
-    navigate("employees");
+    try {
+      const emp = employees.find(e => e.id === id);
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await logActivity('Employee Deleted', `${emp?.firstName} ${emp?.lastName} (${emp?.personalNumber}) removed`);
+      
+      await fetchUserData(session.user);
+      showToast("Employee removed from system.", "info");
+      navigate("employees");
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showToast("Error deleting employee", "error");
+    }
   };
 
   const saveAdmin = async (a) => {
-    const current = await db.get("dpc_admins") || admins;
-    let updated;
-    if (!a.id) { a.id = uid(); a.createdAt = new Date().toISOString(); updated = [...current, a]; await log("Admin Added", `${a.name} added as ${a.role}`); }
-    else { updated = current.map(ad => ad.id === a.id ? a : ad); }
-    setAdmins(updated);
-    await db.set("dpc_admins", updated);
-    showToast("Administrator account saved!");
+    try {
+      const adminData = {
+        name: a.name,
+        email: a.email,
+        role: a.role || 'Admin',
+        is_super: false,
+        created_at: new Date().toISOString()
+      };
+      
+      let result;
+      if (!a.id) {
+        const { data, error } = await supabase
+          .from('admins')
+          .insert([adminData])
+          .select()
+          .single();
+        if (error) throw error;
+        result = data;
+        await logActivity('Admin Added', `${a.name} added as ${a.role}`);
+      } else {
+        const { data, error } = await supabase
+          .from('admins')
+          .update(adminData)
+          .eq('id', a.id)
+          .select()
+          .single();
+        if (error) throw error;
+        result = data;
+      }
+      
+      const { data: allAdmins } = await supabase
+        .from('admins')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setAdmins(allAdmins);
+      
+      showToast("Administrator account saved!");
+    } catch (error) {
+      console.error('Error saving admin:', error);
+      showToast("Error saving admin", "error");
+    }
   };
 
   const removeAdmin = async (id) => {
-    const current = await db.get("dpc_admins") || admins;
-    const a = current.find(x => x.id === id);
-    const updated = current.filter(x => x.id !== id);
-    setAdmins(updated);
-    await db.set("dpc_admins", updated);
-    await log("Admin Removed", `${a?.name} removed from system`);
-    showToast("Administrator access removed.", "info");
+    try {
+      const a = admins.find(x => x.id === id);
+      const { error } = await supabase
+        .from('admins')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await logActivity('Admin Removed', `${a?.name} removed from system`);
+      
+      const { data: allAdmins } = await supabase
+        .from('admins')
+        .select('*')
+        .order('created_at', { ascending: false });
+      setAdmins(allAdmins);
+      
+      showToast("Administrator access removed.", "info");
+    } catch (error) {
+      console.error('Error removing admin:', error);
+      showToast("Error removing admin", "error");
+    }
   };
 
   const submitRegistration = async (emp) => {
-    const current = await db.get("dpc_employees") || [];
-    emp.id = uid();
-    emp.personalNumber = genPN(current);
-    emp.status = "Pending Review";
-    emp.submittedBy = "self";
-    const updated = [...current, emp];
-    await db.set("dpc_employees", updated);
-    setEmployees(updated);
-    const entry = { id:uid(), action:"Self-Registration", details:`${emp.firstName} ${emp.lastName} submitted self-registration (${emp.personalNumber})`, adminName:"Employee Portal", timestamp:new Date().toISOString() };
-    const currentAct = await db.get("dpc_activity") || [];
-    const updatedAct = [entry, ...currentAct].slice(0, 150);
-    await db.set("dpc_activity", updatedAct);
-    setActivity(updatedAct);
-    return emp.personalNumber;
+    try {
+      const newNumber = genPN(employees);
+      emp.personalNumber = newNumber;
+      emp.status = "Pending Review";
+      emp.submittedBy = "self";
+      
+      await saveEmployee(emp);
+      
+      return newNumber;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   };
 
   if (view === "loading") return <LoadingScreen />;

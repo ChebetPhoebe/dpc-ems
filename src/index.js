@@ -2,10 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import storage from './storage';
-
-// Make storage available globally as window.storage (the original code expects it)
-window.storage = storage;
+// Remove this line: import storage from './storage';
+// Remove this line: window.storage = storage;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

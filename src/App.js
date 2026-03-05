@@ -122,6 +122,19 @@ const Sel = ({ value, onChange, options, placeholder, required }) => (
 const Textarea = ({ value, onChange, placeholder, rows=3 }) => (
   <textarea style={{ ...S.input, resize:"vertical", minHeight: rows*40 }} value={value||""} onChange={e=>onChange(e.target.value)} placeholder={placeholder} />
 );
+const YearSelect = ({ value, onChange, required, placeholder = "Select year" }) => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let y = currentYear + 10; y >= 1900; y--) {
+    years.push(y);
+  }
+  return (
+    <select style={S.input} value={value || ""} onChange={e => onChange(e.target.value)} required={required}>
+      <option value="">{placeholder}</option>
+      {years.map(y => <option key={y} value={y}>{y}</option>)}
+    </select>
+  );
+};
 
 // ── LOADING ───────────────────────────────────────────────────────────────────
 const LoadingScreen = () => (
@@ -771,7 +784,9 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
                   <Field label="Education Level" half><Sel value={e.level} onChange={v=>setEdu(i,"level",v)} options={EDUCATION_LEVELS} /></Field>
-                  <Field label="Year Completed" half><Inp type="number" value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} placeholder="e.g. 2018" min="1960" max="2030" /></Field>
+                  <Field label="Year Completed" half>
+  <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
+</Field>
                   <Field label="Institution / University" half><Inp value={e.institution} onChange={v=>setEdu(i,"institution",v)} placeholder="e.g. University of Nairobi" /></Field>
                   <Field label="Field of Study / Course" half><Inp value={e.fieldOfStudy} onChange={v=>setEdu(i,"fieldOfStudy",v)} placeholder="e.g. Mass Communication" /></Field>
                 </div>
@@ -1332,7 +1347,9 @@ const PublicRegistration = ({ onSubmit, employees }) => {
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
                     <Field label="Education Level" half><Sel value={e.level} onChange={v=>setEdu(i,"level",v)} options={EDUCATION_LEVELS} /></Field>
-                    <Field label="Year Completed" half><Inp type="number" value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} placeholder="e.g. 2019" /></Field>
+                    <Field label="Year Completed" half>
+  <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
+</Field>
                     <Field label="Institution / University" half><Inp value={e.institution} onChange={v=>setEdu(i,"institution",v)} placeholder="e.g. University of Nairobi" /></Field>
                     <Field label="Field of Study / Course" half><Inp value={e.fieldOfStudy} onChange={v=>setEdu(i,"fieldOfStudy",v)} placeholder="e.g. Mass Communication" /></Field>
                   </div>
@@ -1627,6 +1644,16 @@ const Reports = ({ employees }) => {
   const [filterDept, setFilterDept] = useState("All");
   const [filterGrade, setFilterGrade] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [sections, setSections] = useState({
+    personal: true,
+    employment: true,
+    deployment: true,
+    education: true,
+    professional: true,
+    workExperience: true,
+    documents: true,
+  });
 
   const filtered = employees.filter(emp => {
     const deptMatch = filterDept === "All" || emp.department === filterDept;
@@ -1635,24 +1662,428 @@ const Reports = ({ employees }) => {
     return deptMatch && gradeMatch && statusMatch;
   });
 
-  const exportCSV = () => {
-    const headers = ['Personal No', 'Name', 'Department', 'Job Grade', 'Status'];
+  // CSV Export (unchanged – full data)
+  const exportFullCSV = () => {
+    const headers = [
+      "Personal No", "First Name", "Middle Name", "Last Name", "Gender", "DOB",
+      "National ID", "KRA PIN", "NSSF", "NHIF", "Phone", "Email", "Marital Status",
+      "Nationality", "Employment Date", "Job Title", "Job Grade", "Employment Type",
+      "Department", "Station", "County", "Region", "Work Station", "Years Experience",
+      "Emergency Name", "Emergency Relationship", "Emergency Phone",
+      "Status", "Submitted By", "Created At", "Last Updated"
+    ];
+
     const rows = filtered.map(e => [
       e.personalNumber,
-      `${e.firstName} ${e.lastName}`,
-      e.department || '',
+      e.firstName,
+      e.middleName || '',
+      e.lastName,
+      e.gender || '',
+      e.dob || '',
+      e.nationalId || '',
+      e.kraPin || '',
+      e.nssfNo || '',
+      e.nhifNo || '',
+      e.phone || '',
+      e.email || '',
+      e.maritalStatus || '',
+      e.nationality || '',
+      e.employmentDate || '',
+      e.jobTitle || '',
       e.jobGrade || '',
-      e.status
+      e.employmentType || '',
+      e.department || '',
+      e.station || '',
+      e.county || '',
+      e.region || '',
+      e.workStation || '',
+      e.yearsOfExperience || '',
+      e.emergencyName || '',
+      e.emergencyRelationship || '',
+      e.emergencyPhone || '',
+      e.status,
+      e.submittedBy || '',
+      e.createdAt ? new Date(e.createdAt).toLocaleDateString() : '',
+      e.updatedAt ? new Date(e.updatedAt).toLocaleDateString() : ''
     ]);
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'employee_report.csv';
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `employee_report_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
+  // PDF Export – with coat of arms and all sections
+  const generatePDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+
+    // Load coat of arms image as base64
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    // Helper to add a section with automatic page breaks
+    const addSection = (title, contentLines) => {
+      if (!contentLines || contentLines.length === 0) return;
+      // Check space
+      if (y + (contentLines.length * 5) > 280) {
+        doc.addPage();
+        y = 20;
+        // repeat header on new page
+        if (imgData) {
+          doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+          doc.setFontSize(16);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+          doc.setFontSize(12);
+          doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 35, 33);
+        } else {
+          doc.setFontSize(16);
+          doc.text('REPUBLIC OF KENYA', 14, 15);
+          doc.setFontSize(12);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 14, 28);
+        }
+        doc.setFontSize(10);
+        doc.text('Report continued...', 14, 40);
+        y = 45;
+      }
+      doc.setFont(undefined, 'bold');
+      doc.text(title, 14, y);
+      y += 5;
+      doc.setFont(undefined, 'normal');
+      contentLines.forEach(line => {
+        doc.text(line, 16, y);
+        y += 5;
+      });
+    };
+
+    // Header
+    if (imgData) {
+      doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+      doc.setFontSize(16);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+      doc.setFontSize(12);
+      doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 35, 33);
+    } else {
+      doc.setFontSize(16);
+      doc.text('REPUBLIC OF KENYA', 14, 15);
+      doc.setFontSize(12);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 14, 28);
+    }
+    doc.setFontSize(10);
+    doc.text(`Report Generated: ${new Date().toLocaleDateString()}`, 14, 40);
+    doc.setFontSize(14);
+    doc.text('Comprehensive Employee Report', 14, 50);
+    doc.setFontSize(10);
+    doc.text(`Filters: Department ${filterDept}, Grade ${filterGrade}, Status ${filterStatus}`, 14, 57);
+    doc.text(`Total Employees in Report: ${filtered.length}`, 14, 64);
+
+    let y = 75;
+
+    filtered.forEach((emp, index) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+        // repeat header on new page
+        if (imgData) {
+          doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+          doc.setFontSize(16);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+          doc.setFontSize(12);
+          doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 35, 33);
+        } else {
+          doc.setFontSize(16);
+          doc.text('REPUBLIC OF KENYA', 14, 15);
+          doc.setFontSize(12);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 14, 28);
+        }
+        doc.setFontSize(10);
+        doc.text('Report continued...', 14, 40);
+        y = 45;
+      }
+
+      // Employee name as header
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`${emp.firstName} ${emp.lastName} (${emp.personalNumber})`, 14, y);
+      y += 6;
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+
+      // Personal Information
+      if (sections.personal) {
+        const lines = [
+          `Gender: ${emp.gender || '—'} | DOB: ${emp.dob || '—'} | National ID: ${emp.nationalId || '—'}`,
+          `KRA PIN: ${emp.kraPin || '—'} | NSSF: ${emp.nssfNo || '—'} | NHIF: ${emp.nhifNo || '—'}`,
+          `Phone: ${emp.phone || '—'} | Email: ${emp.email || '—'} | Marital Status: ${emp.maritalStatus || '—'}`,
+          `Nationality: ${emp.nationality || '—'}`,
+        ];
+        addSection('Personal Information', lines);
+      }
+
+      // Employment Details
+      if (sections.employment) {
+        const lines = [
+          `Employment Date: ${emp.employmentDate || '—'} | Job Title: ${emp.jobTitle || '—'} | Grade: ${emp.jobGrade || '—'}`,
+          `Employment Type: ${emp.employmentType || '—'} | Department: ${emp.department || '—'} | Station: ${emp.station || '—'}`,
+          `Years of Experience: ${emp.yearsOfExperience || '—'}`,
+          `Previous Employer: ${emp.previousEmployer || '—'} | Previous Role: ${emp.previousRole || '—'} | Duration: ${emp.previousDuration || '—'}`,
+          `Emergency Contact: ${emp.emergencyName || '—'} (${emp.emergencyRelationship || '—'}) - ${emp.emergencyPhone || '—'}`,
+        ];
+        addSection('Employment Details', lines);
+      }
+
+      // Place of Deployment
+      if (sections.deployment) {
+        const lines = [
+          `County: ${emp.county || '—'} | Region: ${emp.region || '—'} | Work Station: ${emp.workStation || '—'}`,
+          `Physical Address: ${emp.physicalAddress || '—'}`,
+        ];
+        addSection('Place of Deployment', lines);
+      }
+
+      // Education
+      if (sections.education && emp.education && emp.education.length) {
+        const lines = emp.education.map(edu =>
+          `  • ${edu.level || '—'} at ${edu.institution || '—'}, ${edu.fieldOfStudy || '—'} (${edu.yearCompleted || '—'})`
+        );
+        addSection('Education', lines);
+      }
+
+      // Professional Bodies
+      if (sections.professional && emp.professionalBodies && emp.professionalBodies.length) {
+        const lines = emp.professionalBodies.map(pb =>
+          `  • ${pb.bodyName || '—'} (${pb.membershipNo || '—'}) registered ${pb.registrationDate || '—'}`
+        );
+        addSection('Professional Bodies', lines);
+      }
+
+      // Work Experience
+      if (sections.workExperience && emp.workExperiences && emp.workExperiences.length) {
+        const lines = emp.workExperiences.map(we =>
+          `  • ${we.role || '—'} at ${we.employer || '—'} (${we.duration || '—'}) ${we.startDate || '—'} to ${we.endDate || 'Present'}`
+        );
+        addSection('Work Experience', lines);
+      }
+
+      // Documents
+      if (sections.documents && emp.documents && emp.documents.length) {
+        const lines = emp.documents.map(doc =>
+          `  • ${doc.file_name} (uploaded ${new Date(doc.uploaded_at).toLocaleDateString()})`
+        );
+        addSection('Documents', lines);
+      }
+
+      y += 5; // space between employees
+    });
+
+    doc.save(`employee_report_${new Date().toISOString().slice(0,10)}.pdf`);
+  };
+
+  // Word Export – with coat of arms embedded
+  const generateWord = async () => {
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    const headerHtml = imgData ? `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <img src="${imgData}" width="60" height="60" />
+        <div>
+          <div style="font-size:12px; color:#64748b;">Republic of Kenya</div>
+          <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+          <div style="font-size:13px; color:#64748b;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        </div>
+      </div>
+    ` : `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px; color:#64748b;">Republic of Kenya</div>
+        <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+        <div style="font-size:13px; color:#64748b;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+      </div>
+    `;
+
+    const statsHtml = `
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:20px 0;">
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
+          <div style="font-size:12px; color:#64748b;">Total Employees</div>
+          <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.length}</div>
+        </div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
+          <div style="font-size:12px; color:#64748b;">Active</div>
+          <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "Active").length}</div>
+        </div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
+          <div style="font-size:12px; color:#64748b;">Pending Review</div>
+          <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "Pending Review").length}</div>
+        </div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
+          <div style="font-size:12px; color:#64748b;">On Leave</div>
+          <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "On Leave").length}</div>
+        </div>
+      </div>
+    `;
+
+    const employeesHtml = filtered.map(emp => {
+      let sectionsHtml = '';
+
+      if (sections.personal) {
+        sectionsHtml += `
+          <h4>Personal Information</h4>
+          <p><strong>Gender:</strong> ${emp.gender || '—'} | <strong>DOB:</strong> ${emp.dob || '—'} | <strong>National ID:</strong> ${emp.nationalId || '—'}</p>
+          <p><strong>KRA PIN:</strong> ${emp.kraPin || '—'} | <strong>NSSF:</strong> ${emp.nssfNo || '—'} | <strong>NHIF:</strong> ${emp.nhifNo || '—'}</p>
+          <p><strong>Phone:</strong> ${emp.phone || '—'} | <strong>Email:</strong> ${emp.email || '—'} | <strong>Marital Status:</strong> ${emp.maritalStatus || '—'}</p>
+          <p><strong>Nationality:</strong> ${emp.nationality || '—'}</p>
+        `;
+      }
+
+      if (sections.employment) {
+        sectionsHtml += `
+          <h4>Employment Details</h4>
+          <p><strong>Employment Date:</strong> ${emp.employmentDate || '—'} | <strong>Job Title:</strong> ${emp.jobTitle || '—'} | <strong>Grade:</strong> ${emp.jobGrade || '—'}</p>
+          <p><strong>Employment Type:</strong> ${emp.employmentType || '—'} | <strong>Department:</strong> ${emp.department || '—'} | <strong>Station:</strong> ${emp.station || '—'}</p>
+          <p><strong>Years of Experience:</strong> ${emp.yearsOfExperience || '—'}</p>
+          <p><strong>Previous Employer:</strong> ${emp.previousEmployer || '—'} | <strong>Previous Role:</strong> ${emp.previousRole || '—'} | <strong>Duration:</strong> ${emp.previousDuration || '—'}</p>
+          <p><strong>Emergency Contact:</strong> ${emp.emergencyName || '—'} (${emp.emergencyRelationship || '—'}) - ${emp.emergencyPhone || '—'}</p>
+        `;
+      }
+
+      if (sections.deployment) {
+        sectionsHtml += `
+          <h4>Place of Deployment</h4>
+          <p><strong>County:</strong> ${emp.county || '—'} | <strong>Region:</strong> ${emp.region || '—'} | <strong>Work Station:</strong> ${emp.workStation || '—'}</p>
+          <p><strong>Physical Address:</strong> ${emp.physicalAddress || '—'}</p>
+        `;
+      }
+
+      if (sections.education && emp.education && emp.education.length) {
+        sectionsHtml += `<h4>Education</h4>`;
+        emp.education.forEach(edu => {
+          sectionsHtml += `<p>• ${edu.level || '—'} at ${edu.institution || '—'}, ${edu.fieldOfStudy || '—'} (${edu.yearCompleted || '—'})</p>`;
+        });
+      }
+
+      if (sections.professional && emp.professionalBodies && emp.professionalBodies.length) {
+        sectionsHtml += `<h4>Professional Bodies</h4>`;
+        emp.professionalBodies.forEach(pb => {
+          sectionsHtml += `<p>• ${pb.bodyName || '—'} (${pb.membershipNo || '—'}) registered ${pb.registrationDate || '—'}</p>`;
+        });
+      }
+
+      if (sections.workExperience && emp.workExperiences && emp.workExperiences.length) {
+        sectionsHtml += `<h4>Work Experience</h4>`;
+        emp.workExperiences.forEach(we => {
+          sectionsHtml += `<p>• ${we.role || '—'} at ${we.employer || '—'} (${we.duration || '—'}) ${we.startDate || '—'} to ${we.endDate || 'Present'}</p>`;
+        });
+      }
+
+      if (sections.documents && emp.documents && emp.documents.length) {
+        sectionsHtml += `<h4>Documents</h4>`;
+        emp.documents.forEach(doc => {
+          sectionsHtml += `<p>• ${doc.file_name} (uploaded ${new Date(doc.uploaded_at).toLocaleDateString()})</p>`;
+        });
+      }
+
+      return `
+        <div style="border:1px solid #d1d9e6; border-radius:8px; padding:16px; margin-bottom:20px; background:#fff;">
+          <h3 style="margin:0 0 10px 0; color:#0d1f3c;">${emp.firstName} ${emp.lastName} (${emp.personalNumber})</h3>
+          ${sectionsHtml}
+          <p><strong>Status:</strong> ${emp.status}</p>
+        </div>
+      `;
+    }).join('');
+
+    const fullHtml = `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 20px; background: #eef1f6; }
+            .container { max-width: 1000px; margin: 0 auto; }
+            h4 { margin-bottom: 5px; color: #0d1f3c; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${headerHtml}
+            <h2>Comprehensive Employee Report</h2>
+            <p><strong>Filters:</strong> Department ${filterDept}, Grade ${filterGrade}, Status ${filterStatus}</p>
+            ${statsHtml}
+            <h3>Employee Details (${filtered.length})</h3>
+            ${employeesHtml}
+          </div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([fullHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `employee_report_${new Date().toISOString().slice(0,10)}.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Stats for display
   const total = employees.length;
   const active = employees.filter(e => e.status === "Active").length;
   const pending = employees.filter(e => e.status === "Pending Review").length;
@@ -1662,6 +2093,7 @@ const Reports = ({ employees }) => {
     <div>
       <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>Reports</h2>
       
+      {/* Stats cards */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
         <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
           <div style={{ fontSize:12, color:C.muted }}>Total Employees</div>
@@ -1681,6 +2113,7 @@ const Reports = ({ employees }) => {
         </div>
       </div>
 
+      {/* Filter and customize row */}
       <div style={{ ...S.card, marginBottom:20 }}>
         <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"flex-end" }}>
           <div style={{ minWidth:180 }}>
@@ -1704,14 +2137,49 @@ const Reports = ({ employees }) => {
               {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div>
-            <button onClick={exportCSV} style={S.btn("primary")}>Download Filtered CSV</button>
+          <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
+            <button onClick={() => setShowCustomize(true)} style={S.btn("outline")}>⚙️ Customize</button>
           </div>
+        </div>
+        <div style={{ display:"flex", gap:8, marginTop:16 }}>
+          <button onClick={exportFullCSV} style={S.btn("outline")}>CSV</button>
+          <button onClick={generatePDF} style={S.btn("outline")}>PDF</button>
+          <button onClick={generateWord} style={S.btn("outline")}>Word</button>
         </div>
       </div>
 
+      {/* Customization Modal */}
+      {showCustomize && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{ background: C.white, borderRadius: 12, padding: 24, maxWidth: 400, width: '90%' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Customize Report Sections</h3>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+              Select which sections to include in PDF and Word exports. CSV always includes all data.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label><input type="checkbox" checked={sections.personal} onChange={e => setSections({...sections, personal: e.target.checked})} /> Personal Information</label>
+              <label><input type="checkbox" checked={sections.employment} onChange={e => setSections({...sections, employment: e.target.checked})} /> Employment Details</label>
+              <label><input type="checkbox" checked={sections.deployment} onChange={e => setSections({...sections, deployment: e.target.checked})} /> Place of Deployment</label>
+              <label><input type="checkbox" checked={sections.education} onChange={e => setSections({...sections, education: e.target.checked})} /> Education</label>
+              <label><input type="checkbox" checked={sections.professional} onChange={e => setSections({...sections, professional: e.target.checked})} /> Professional Bodies</label>
+              <label><input type="checkbox" checked={sections.workExperience} onChange={e => setSections({...sections, workExperience: e.target.checked})} /> Work Experience</label>
+              <label><input type="checkbox" checked={sections.documents} onChange={e => setSections({...sections, documents: e.target.checked})} /> Documents</label>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+              <button onClick={() => setShowCustomize(false)} style={S.btn("ghost")}>Cancel</button>
+              <button onClick={() => setShowCustomize(false)} style={S.btn("primary")}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary table */}
       <div style={S.card}>
-        <h3 style={{ fontSize:18, fontWeight:600, marginBottom:16 }}>Filtered Employees</h3>
+        <h3 style={{ fontSize:18, fontWeight:600, marginBottom:16 }}>Filtered Employees (Summary)</h3>
         {filtered.length === 0 ? (
           <p style={{ color:C.muted, textAlign:"center", padding:20 }}>No employees match the selected filters.</p>
         ) : (

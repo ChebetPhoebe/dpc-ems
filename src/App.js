@@ -1,6 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from './supabaseClient';
 
+// ── RUN THESE SQL STATEMENTS IN SUPABASE ──────────────────────────────────────
+/*
+-- 1. Create employee_documents table
+CREATE TABLE employee_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
+  file_name TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  file_type TEXT,
+  uploaded_by UUID REFERENCES admins(id),
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE employee_documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated all" ON employee_documents FOR ALL TO authenticated USING (true);
+
+-- 2. Create storage bucket 'employee-documents' (public)
+--    (do this via Supabase dashboard: Storage → Create bucket)
+
+-- 3. Allow public read for employees (for leave form dropdown)
+CREATE POLICY "Allow public read employees for leave form" ON employees
+  FOR SELECT TO anon USING (true);
+*/
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ── GOOGLE FONTS ──────────────────────────────────────────────────────────────
 (() => {
   const l = document.createElement("link");
@@ -176,6 +200,7 @@ const NAV_ITEMS = [
   { id:"employees", label:"Employee Database" },
   { id:"add-employee", label:"Add Employee" },
   { id:"leave-requests", label:"Leave Requests" },
+  { id:"reports", label:"Reports" },
   { id:"admins", label:"Admin Management" },
 ];
 
@@ -192,77 +217,20 @@ const TopNav = ({ view, navigate }) => (
   </div>
 );
 
-// ── SIDEBAR (hamburger) with stats ────────────────────────────────────────────
-const Sidebar = ({ isOpen, toggleSidebar, employees, admin, onLogout }) => {
-  const sidebarRef = useRef(null);
-  const active = employees.filter(e=>e.status==="Active").length;
-  const pending = employees.filter(e=>e.status==="Pending Review").length;
-  const onLeave = employees.filter(e=>e.status==="On Leave").length;
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target) && isOpen) {
-        toggleSidebar();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, toggleSidebar]);
-
-  if (!isOpen) return null;
-
-  return (
-    <>
-      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1001 }} onClick={toggleSidebar} />
-      <div ref={sidebarRef} style={{ position:"fixed", top:0, left:0, width:280, height:"100vh", background:C.white, boxShadow:"2px 0 10px rgba(0,0,0,0.1)", zIndex:1002, display:"flex", flexDirection:"column", overflowY:"auto", padding:20 }}>
-        <div style={{ marginBottom:24 }}>
-          <div style={{ fontSize:14, fontWeight:600, color:C.muted, marginBottom:12 }}>Stats</div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-            <div style={{ background:C.bg, borderRadius:8, padding:12 }}>
-              <div style={{ fontSize:11, color:C.muted, textTransform:"uppercase" }}>Total</div>
-              <div style={{ fontSize:24, fontWeight:700, color:C.navy }}>{employees.length}</div>
-            </div>
-            <div style={{ background:C.bg, borderRadius:8, padding:12 }}>
-              <div style={{ fontSize:11, color:C.muted, textTransform:"uppercase" }}>Active</div>
-              <div style={{ fontSize:24, fontWeight:700, color:C.navy }}>{active}</div>
-            </div>
-            <div style={{ background:C.bg, borderRadius:8, padding:12 }}>
-              <div style={{ fontSize:11, color:C.muted, textTransform:"uppercase" }}>Pending</div>
-              <div style={{ fontSize:24, fontWeight:700, color:C.navy }}>{pending}</div>
-            </div>
-            <div style={{ background:C.bg, borderRadius:8, padding:12 }}>
-              <div style={{ fontSize:11, color:C.muted, textTransform:"uppercase" }}>On Leave</div>
-              <div style={{ fontSize:24, fontWeight:700, color:C.navy }}>{onLeave}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop:"auto", borderTop:`1px solid ${C.border}`, paddingTop:16 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ width:40, height:40, borderRadius:"50%", background:C.gold, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:C.navy }}>{initials(admin?.name)}</div>
-            <div>
-              <div style={{ fontSize:14, fontWeight:600 }}>{admin?.name}</div>
-              <div style={{ fontSize:12, color:C.muted }}>{admin?.role}</div>
-            </div>
-          </div>
-          <button onClick={onLogout} style={{ width:"100%", marginTop:16, padding:"10px", background:"transparent", border:`1px solid ${C.gold}`, color:C.gold, borderRadius:6, cursor:"pointer", fontSize:14 }}>Sign Out</button>
-        </div>
-      </div>
-    </>
-  );
-};
-
-// ── ADMIN LAYOUT (with bell) ──────────────────────────────────────────────────
+// ── ADMIN LAYOUT (with user dropdown) ─────────────────────────────────────────
 const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employees, activity }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef(null);
-  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const userMenuRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowNotifications(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -308,38 +276,68 @@ const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employe
           </div>
 
           <div style={{ width:1, height:30, background:C.border }} />
-          <div style={{ fontSize:14, fontWeight:600, color:C.navy, background:C.bg, padding:"6px 14px", borderRadius:20, border:`1px solid ${C.border}` }}>
-            {admin?.name}
+          
+          {/* User menu */}
+          <div style={{ position:"relative" }} ref={userMenuRef}>
+            <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:8, padding:"4px 8px", borderRadius:20, background:C.bg }}>
+              <span style={{ fontSize:14, fontWeight:600, color:C.navy }}>{admin?.name}</span>
+              <span style={{ fontSize:12, color:C.muted }}>▼</span>
+            </button>
+            {showUserMenu && (
+              <div style={{ position:"absolute", right:0, top:40, width:180, background:C.white, borderRadius:8, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", zIndex:1000 }}>
+                <button onClick={() => { setShowUserMenu(false); navigate("profile"); }} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", borderBottom:`1px solid ${C.border}` }}>
+                  View Profile
+                </button>
+                <button onClick={onLogout} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", color:C.error }}>
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <TopNav view={view} navigate={navigate} />
 
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} employees={employees} admin={admin} onLogout={onLogout} />
-
       <main style={{ padding:28 }}>
-        {React.isValidElement(children) ? React.cloneElement(children, { toggleSidebar }) : children}
+        {children}
       </main>
       <Toast toast={toast} />
     </div>
   );
 };
 
+// ── PROFILE PAGE ──────────────────────────────────────────────────────────────
+const Profile = ({ admin }) => {
+  return (
+    <div>
+      <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>My Profile</h2>
+      <div style={S.card}>
+        <div style={{ display:"flex", alignItems:"center", gap:24 }}>
+          <div style={{ width:80, height:80, borderRadius:"50%", background:`linear-gradient(135deg, ${C.gold}, ${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, fontWeight:800, color:C.navy }}>
+            {initials(admin?.name)}
+          </div>
+          <div>
+            <div style={{ fontSize:20, fontWeight:600 }}>{admin?.name}</div>
+            <div style={{ fontSize:14, color:C.muted }}>{admin?.email}</div>
+            <div style={{ fontSize:14, color:C.muted }}>Role: {admin?.role}</div>
+            <div style={{ fontSize:12, color:C.gold, marginTop:4 }}>Member since {fmtDate(admin?.created_at)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-const Dashboard = ({ employees, navigate, admin, leaveRequests, toggleSidebar }) => {
+const Dashboard = ({ employees, navigate, admin, leaveRequests }) => {
   const regLink = `${window.location.href.split("#")[0]}#register`;
   const leaveLink = `${window.location.href.split("#")[0]}#leave-request`;
   const pendingLeaves = leaveRequests.filter(r => r.status === "Pending").length;
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
-        <button onClick={toggleSidebar} style={{ background:"none", border:"none", cursor:"pointer", fontSize:24, color:C.navy }}>
-          ☰
-        </button>
-        <h1 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", margin:0 }}>Dashboard</h1>
-      </div>
+      <h1 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:24 }}>Dashboard</h1>
 
       <div style={{ ...S.card, background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy2} 100%)`, marginBottom:24 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
@@ -413,6 +411,7 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
           <button onClick={exportCSV} style={S.btn("outline")}>Export CSV</button>
           <button onClick={()=>navigate("add-employee")} style={S.btn("primary")}>Add Employee</button>
           <button onClick={onRefresh} style={{ ...S.btn("outline"), marginLeft:8 }}>↻ Refresh</button>
+          <button onClick={() => navigate("reports")} style={{ ...S.btn("outline"), marginLeft:8 }}>Reports</button>
         </div>
       </div>
 
@@ -491,7 +490,77 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
   );
 };
 
-// ── EMPLOYEE FORM ─────────────────────────────────────────────────────────────
+// ── EMPLOYEE DOCUMENTS COMPONENT (for admin use) ──────────────────────────────
+const EmployeeDocuments = ({ employeeId, documents, onUpload, onDelete, isEditing }) => {
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (let file of files) {
+      await onUpload(file);
+    }
+    setUploading(false);
+    fileInputRef.current.value = '';
+  };
+
+  return (
+    <div>
+      <div style={S.secHead}>Documents</div>
+      {isEditing && (
+        <div style={{ marginBottom: 20 }}>
+          <input
+            type="file"
+            multiple
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            disabled={uploading}
+            style={{ marginRight: 10 }}
+          />
+          {uploading && <span>Uploading...</span>}
+        </div>
+      )}
+      {documents && documents.length > 0 ? (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: C.navy, color: C.white }}>
+              <th style={{ padding: 10, textAlign: 'left' }}>File Name</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Type</th>
+              <th style={{ padding: 10, textAlign: 'left' }}>Uploaded</th>
+              {isEditing && <th style={{ padding: 10 }}>Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map(doc => (
+              <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={{ padding: 10 }}>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.navy }}>
+                    {doc.file_name}
+                  </a>
+                </td>
+                <td style={{ padding: 10 }}>{doc.file_type || '—'}</td>
+                <td style={{ padding: 10 }}>{fmtDate(doc.uploaded_at)}</td>
+                {isEditing && (
+                  <td style={{ padding: 10 }}>
+                    <button onClick={() => onDelete(doc)} style={{ ...S.btn('danger'), padding: '4px 10px', fontSize: 12 }}>
+                      Delete
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p style={{ color: C.muted }}>No documents uploaded yet.</p>
+      )}
+    </div>
+  );
+};
+
+// ── EMPLOYEE FORM (with Documents tab) ────────────────────────────────────────
 const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
   const [form, setForm] = useState(employee ? {
     ...employee,
@@ -501,6 +570,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
   } : { ...emptyEmp(), personalNumber: "" });
   const [tab, setTab] = useState(0);
   const [validationError, setValidationError] = useState('');
+  const [documents, setDocuments] = useState(employee?.documents || []);
 
   const requiredFieldsPerTab = {
     0: ['firstName', 'lastName', 'nationalId', 'personalNumber', 'phone'],
@@ -510,6 +580,77 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
     4: [],
     5: [],
     6: [],
+    7: [],
+  };
+
+  useEffect(() => {
+    if (employee?.id) {
+      fetchDocuments(employee.id);
+    }
+  }, [employee]);
+
+  const fetchDocuments = async (empId) => {
+    const { data, error } = await supabase
+      .from('employee_documents')
+      .select('*')
+      .eq('employee_id', empId)
+      .order('uploaded_at', { ascending: false });
+    if (!error) setDocuments(data);
+  };
+
+  const uploadDocument = async (file) => {
+    if (!employee?.id) {
+      alert('Please save the employee first before uploading documents.');
+      return;
+    }
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${employee.id}/${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from('employee-documents')
+      .upload(fileName, file);
+    if (uploadError) {
+      alert('Upload failed: ' + uploadError.message);
+      return;
+    }
+    const { data: urlData } = supabase.storage
+      .from('employee-documents')
+      .getPublicUrl(fileName);
+    const fileUrl = urlData.publicUrl;
+    const { data, error } = await supabase
+      .from('employee_documents')
+      .insert([{
+        employee_id: employee.id,
+        file_name: file.name,
+        file_url: fileUrl,
+        file_type: file.type
+      }])
+      .select()
+      .single();
+    if (error) {
+      alert('Error saving document info: ' + error.message);
+      return;
+    }
+    setDocuments(prev => [...prev, data]);
+  };
+
+  const deleteDocument = async (doc) => {
+    const fileName = doc.file_url.split('/').pop();
+    const { error: storageError } = await supabase.storage
+      .from('employee-documents')
+      .remove([`${employee.id}/${fileName}`]);
+    if (storageError) {
+      alert('Failed to delete file: ' + storageError.message);
+      return;
+    }
+    const { error } = await supabase
+      .from('employee_documents')
+      .delete()
+      .eq('id', doc.id);
+    if (error) {
+      alert('Error deleting document record: ' + error.message);
+      return;
+    }
+    setDocuments(prev => prev.filter(d => d.id !== doc.id));
   };
 
   const validateTab = (tabIndex) => {
@@ -550,7 +691,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
     onSave({...form, updatedAt:new Date().toISOString()});
   };
 
-  const TABS = ["Personal Info","Employment","Deployment","Education","Prof. Bodies","Work Experience","Emergency"];
+  const TABS = ["Personal Info","Employment","Deployment","Education","Prof. Bodies","Work Experience","Emergency","Documents"];
   const tabBtn = (i) => ({ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"'Inter', sans-serif", fontSize:13, fontWeight:tab===i?700:400, background:tab===i?C.gold:"transparent", color:tab===i?C.white:C.navy, transition:"all 0.15s" });
 
   return (
@@ -705,6 +846,16 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
           </div>
         )}
 
+        {tab===7 && (
+          <EmployeeDocuments
+            employeeId={employee?.id}
+            documents={documents}
+            onUpload={uploadDocument}
+            onDelete={deleteDocument}
+            isEditing={true}
+          />
+        )}
+
         <div style={{ display:"flex", justifyContent:"space-between", marginTop:28, paddingTop:22, borderTop:`1px solid ${C.border}` }}>
           <div style={{ display:"flex", gap:8 }}>
             {tab>0 && <button onClick={()=>setTab(t=>t-1)} style={S.btn("outline")}>← Previous</button>}
@@ -722,7 +873,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
   );
 };
 
-// ── EMPLOYEE PROFILE ──────────────────────────────────────────────────────────
+// ── EMPLOYEE PROFILE (with Documents section) ─────────────────────────────────
 const Row = ({ label, value }) => (
   <div style={{ display:"flex", gap:12, padding:"9px 0", borderBottom:`1px solid ${C.border}` }}>
     <div style={{ width:190, color:C.muted, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:0.4, flexShrink:0, paddingTop:1 }}>{label}</div>
@@ -830,6 +981,35 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
           <Row label="Submitted By" value={e.submittedBy==="self"?"Employee (Self-Registration)":"Administrator"} />
           {e.notes && <Row label="Notes" value={e.notes} />}
         </div>
+
+        {/* Documents Section */}
+        <div style={S.card}>
+          <div style={S.secHead}>Documents</div>
+          {e.documents && e.documents.length > 0 ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: C.navy, color: C.white }}>
+                  <th style={{ padding: 10, textAlign: 'left' }}>File Name</th>
+                  <th style={{ padding: 10, textAlign: 'left' }}>Uploaded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {e.documents.map(doc => (
+                  <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: 10 }}>
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.navy }}>
+                        {doc.file_name}
+                      </a>
+                    </td>
+                    <td style={{ padding: 10 }}>{fmtDate(doc.uploaded_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p style={{ color: C.muted }}>No documents uploaded.</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -914,7 +1094,7 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
   );
 };
 
-// ── PUBLIC REGISTRATION ───────────────────────────────────────────────────────
+// ── PUBLIC REGISTRATION (with document upload) ────────────────────────────────
 const PublicRegistration = ({ onSubmit, employees }) => {
   const [form, setForm] = useState({ 
     ...emptyEmp(), 
@@ -923,8 +1103,12 @@ const PublicRegistration = ({ onSubmit, employees }) => {
     workExperiences: [{ id: uid(), employer: "", role: "", duration: "", startDate: "", endDate: "" }]
   });
   const [tab, setTab] = useState(0);
-  const [done, setDone] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [newEmployee, setNewEmployee] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [stage, setStage] = useState('form'); // 'form', 'upload', 'success'
+  const fileInputRef = useRef(null);
 
   const set = (f,v) => setForm(p=>({...p,[f]:v}));
   const setEdu = (i,f,v) => setForm(p=>{const e=[...p.education];e[i]={...e[i],[f]:v};return{...p,education:e};});
@@ -940,34 +1124,125 @@ const PublicRegistration = ({ onSubmit, employees }) => {
   const submit = async () => {
     if(!form.firstName?.trim()||!form.lastName?.trim()||!form.nationalId?.trim()){alert("First name, last name, and National ID are required.");setTab(0);return;}
     setSubmitting(true);
-    const pn = await onSubmit(form);
-    setDone(pn);
+    try {
+      const emp = await onSubmit(form);
+      setNewEmployee(emp);
+      setStage('upload');
+    } catch (error) {
+      alert('Registration failed. Please try again.');
+    }
     setSubmitting(false);
   };
 
-  const TABS = ["Personal Info","Employment","Deployment","Education","Prof. Bodies","Work Experience","Emergency"];
+  const uploadDocument = async (file) => {
+    if (!newEmployee?.id) return;
+    setUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${newEmployee.id}/${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabase.storage
+      .from('employee-documents')
+      .upload(fileName, file);
+    if (uploadError) {
+      alert('Upload failed: ' + uploadError.message);
+      setUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage
+      .from('employee-documents')
+      .getPublicUrl(fileName);
+    const fileUrl = urlData.publicUrl;
+    const { data, error } = await supabase
+      .from('employee_documents')
+      .insert([{
+        employee_id: newEmployee.id,
+        file_name: file.name,
+        file_url: fileUrl,
+        file_type: file.type
+      }])
+      .select()
+      .single();
+    if (error) {
+      alert('Error saving document info: ' + error.message);
+      setUploading(false);
+      return;
+    }
+    setUploadedFiles(prev => [...prev, data]);
+    setUploading(false);
+  };
 
-  if(done) return (
-    <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
-      <style>{`*{box-sizing:border-box}body{margin:0}`}</style>
-      <div style={{ background:C.white, borderRadius:24, padding:"52px 48px", textAlign:"center", maxWidth:500, boxShadow:"0 40px 80px rgba(0,0,0,0.4)" }}>
-        <div style={{ fontSize:72, marginBottom:20 }}>✅</div>
-        <div style={{ fontSize:28, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:10 }}>Registration Successful!</div>
-        <div style={{ color:C.muted, fontSize:15, marginBottom:24, lineHeight:1.7 }}>
-          Thank you, <strong>{form.firstName} {form.lastName}</strong>. Your details have been securely submitted.
+  const handleFileChange = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    for (let file of files) {
+      await uploadDocument(file);
+    }
+    fileInputRef.current.value = '';
+  };
+
+  const finish = () => setStage('success');
+
+  if (stage === 'upload') {
+    return (
+      <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Inter', sans-serif", padding:20 }}>
+        <div style={{ maxWidth:600, margin:"0 auto", background:C.white, borderRadius:16, padding:32, boxShadow:"0 4px 20px rgba(0,0,0,0.1)" }}>
+          <div style={{ textAlign:"center", marginBottom:24 }}>
+            <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:60, height:60 }} />
+            <h1 style={{ fontSize:24, color:C.navy, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Upload Documents</h1>
+            <p style={{ color:C.muted }}>You can upload your CV, certificates, or any supporting documents (optional).</p>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <input
+              type="file"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              disabled={uploading}
+              style={{ marginRight: 10 }}
+            />
+            {uploading && <span>Uploading...</span>}
+          </div>
+          {uploadedFiles.length > 0 && (
+            <div style={{ marginBottom:20 }}>
+              <h3>Uploaded Files:</h3>
+              <ul>
+                {uploadedFiles.map(f => <li key={f.id}>{f.file_name}</li>)}
+              </ul>
+            </div>
+          )}
+          <div style={{ display:"flex", justifyContent:"space-between", gap:16 }}>
+            <button onClick={finish} style={{ ...S.btn("primary") }}>Continue to Success</button>
+            <button onClick={finish} style={{ ...S.btn("ghost") }}>Skip</button>
+          </div>
         </div>
-        <div style={{ background:C.bg, borderRadius:12, padding:24, marginBottom:24 }}>
-          <div style={{ color:C.muted, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Personal Number</div>
-          <div style={{ fontSize:32, fontWeight:800, color:C.gold, fontFamily:"monospace", letterSpacing:2, marginBottom:4 }}>{done}</div>
-          <div style={{ fontSize:13, color:C.muted }}>Keep this number for future reference.</div>
-        </div>
-        <div style={{ color:C.muted, fontSize:14, lineHeight:1.7, background:"#fef3c7", padding:"16px 20px", borderRadius:12, border:"1px solid #fde68a", marginBottom:24 }}>
-          <strong>⏳ Pending Review</strong> – Your record will be reviewed by an administrator.
-        </div>
-        <button onClick={() => window.location.href = '/'} style={{ ...S.btn("outline"), padding:"12px 24px", fontSize:15 }}>Return to Home</button>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (stage === 'success') {
+    return (
+      <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
+        <style>{`*{box-sizing:border-box}body{margin:0}`}</style>
+        <div style={{ background:C.white, borderRadius:24, padding:"52px 48px", textAlign:"center", maxWidth:500, boxShadow:"0 40px 80px rgba(0,0,0,0.4)" }}>
+          <div style={{ fontSize:72, marginBottom:20 }}>✅</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:10 }}>Registration Successful!</div>
+          <div style={{ color:C.muted, fontSize:15, marginBottom:24, lineHeight:1.7 }}>
+            Thank you, <strong>{form.firstName} {form.lastName}</strong>. Your details have been securely submitted.
+          </div>
+          <div style={{ background:C.bg, borderRadius:12, padding:24, marginBottom:24 }}>
+            <div style={{ color:C.muted, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Personal Number</div>
+            <div style={{ fontSize:32, fontWeight:800, color:C.gold, fontFamily:"monospace", letterSpacing:2, marginBottom:4 }}>{newEmployee?.personalNumber}</div>
+            <div style={{ fontSize:13, color:C.muted }}>Keep this number for future reference.</div>
+          </div>
+          <div style={{ color:C.muted, fontSize:14, lineHeight:1.7, background:"#fef3c7", padding:"16px 20px", borderRadius:12, border:"1px solid #fde68a", marginBottom:24 }}>
+            <strong>⏳ Pending Review</strong> – Your record will be reviewed by an administrator.
+          </div>
+          <button onClick={() => window.location.href = '/'} style={{ ...S.btn("outline"), padding:"12px 24px", fontSize:15 }}>Return to Home</button>
+        </div>
+      </div>
+    );
+  }
+
+  const TABS = ["Personal Info","Employment","Deployment","Education","Prof. Bodies","Work Experience","Emergency"];
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Inter', sans-serif" }}>
@@ -1140,7 +1415,7 @@ const PublicRegistration = ({ onSubmit, employees }) => {
   );
 };
 
-// ── LEAVE REQUEST PUBLIC FORM ─────────────────────────────────────────────────
+// ── LEAVE REQUEST PUBLIC FORM (with employee dropdown) ────────────────────────
 const LeaveRequestForm = ({ onSubmit }) => {
   const [form, setForm] = useState({
     employeePersonalNumber: "",
@@ -1151,10 +1426,39 @@ const LeaveRequestForm = ({ onSubmit }) => {
   });
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [employeeValid, setEmployeeValid] = useState(false);
+
+  const validateEmployee = async () => {
+    if (!form.employeePersonalNumber) {
+      setError("Please enter your personal number.");
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('employees')
+      .select('first_name, last_name')
+      .eq('personal_number', form.employeePersonalNumber)
+      .maybeSingle();
+    if (error || !data) {
+      setError("Invalid personal number. Please check and try again.");
+      setEmployeeValid(false);
+      setForm(prev => ({ ...prev, employeeName: "" }));
+    } else {
+      setForm(prev => ({ ...prev, employeeName: `${data.first_name} ${data.last_name}` }));
+      setEmployeeValid(true);
+      setError("");
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.employeePersonalNumber || !form.employeeName || !form.startDate || !form.endDate || !form.reason) {
+    if (!employeeValid) {
+      setError("Please verify your personal number first.");
+      return;
+    }
+    if (!form.startDate || !form.endDate || !form.reason) {
       setError("All fields are required.");
       return;
     }
@@ -1186,54 +1490,71 @@ const LeaveRequestForm = ({ onSubmit }) => {
         <div style={{ textAlign:"center", marginBottom:24 }}>
           <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:60, height:60 }} />
           <h1 style={{ fontSize:24, color:C.navy, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Leave Request</h1>
-          <p style={{ color:C.muted }}>Fill in the form below to request leave.</p>
+          <p style={{ color:C.muted }}>Enter your personal number to request leave.</p>
         </div>
         {error && <div style={{ background:"#fee2e2", color:C.error, padding:10, borderRadius:6, marginBottom:16 }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <Field label="Personal Number" required>
-            <Inp 
-              value={form.employeePersonalNumber} 
-              onChange={(val) => setForm({...form, employeePersonalNumber: val})} 
-              placeholder="e.g. DPC/2025/00012" 
-              required 
-            />
+            <div style={{ display:"flex", gap:8 }}>
+              <Inp
+                value={form.employeePersonalNumber}
+                onChange={(val) => {
+                  setForm({...form, employeePersonalNumber: val});
+                  setEmployeeValid(false);
+                }}
+                placeholder="e.g. DPC/2025/00012"
+                required
+                disabled={loading}
+                style={{ flex:1 }}
+              />
+              <button 
+                type="button" 
+                onClick={validateEmployee} 
+                disabled={loading}
+                style={{ ...S.btn("primary"), padding:"10px 16px" }}
+              >
+                {loading ? "..." : "Verify"}
+              </button>
+            </div>
           </Field>
-          <Field label="Full Name" required>
-            <Inp 
-              value={form.employeeName} 
-              onChange={(val) => setForm({...form, employeeName: val})} 
-              placeholder="Your full name" 
-              required 
-            />
-          </Field>
+
+          {form.employeeName && (
+            <div style={{ marginBottom:16, padding:10, background:C.bg, borderRadius:8, border:`1px solid ${C.border}` }}>
+              <strong>Name:</strong> {form.employeeName}
+            </div>
+          )}
+
           <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
             <Field label="Start Date" required half>
-              <Inp 
-                type="date" 
-                value={form.startDate} 
-                onChange={(val) => setForm({...form, startDate: val})} 
-                required 
+              <Inp
+                type="date"
+                value={form.startDate}
+                onChange={(val) => setForm({...form, startDate: val})}
+                required
+                disabled={!employeeValid}
               />
             </Field>
             <Field label="End Date" required half>
-              <Inp 
-                type="date" 
-                value={form.endDate} 
-                onChange={(val) => setForm({...form, endDate: val})} 
-                required 
+              <Inp
+                type="date"
+                value={form.endDate}
+                onChange={(val) => setForm({...form, endDate: val})}
+                required
+                disabled={!employeeValid}
               />
             </Field>
           </div>
           <Field label="Reason for Leave" required>
-            <Textarea 
-              value={form.reason} 
-              onChange={(val) => setForm({...form, reason: val})} 
-              placeholder="e.g. Annual leave, sick leave, etc." 
-              rows={4} 
-              required 
+            <Textarea
+              value={form.reason}
+              onChange={(val) => setForm({...form, reason: val})}
+              placeholder="e.g. Annual leave, sick leave, etc."
+              rows={4}
+              required
+              disabled={!employeeValid}
             />
           </Field>
-          <button type="submit" style={{ ...S.btn("primary"), width:"100%", marginTop:16 }}>Submit Request</button>
+          <button type="submit" style={{ ...S.btn("primary"), width:"100%", marginTop:16 }} disabled={!employeeValid || loading}>Submit Request</button>
         </form>
       </div>
     </div>
@@ -1301,6 +1622,132 @@ const LeaveRequestsAdmin = ({ requests, onApprove, onDecline }) => {
   );
 };
 
+// ── REPORTS PAGE (enhanced) ───────────────────────────────────────────────────
+const Reports = ({ employees }) => {
+  const [filterDept, setFilterDept] = useState("All");
+  const [filterGrade, setFilterGrade] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  const filtered = employees.filter(emp => {
+    const deptMatch = filterDept === "All" || emp.department === filterDept;
+    const gradeMatch = filterGrade === "All" || emp.jobGrade === filterGrade;
+    const statusMatch = filterStatus === "All" || emp.status === filterStatus;
+    return deptMatch && gradeMatch && statusMatch;
+  });
+
+  const exportCSV = () => {
+    const headers = ['Personal No', 'Name', 'Department', 'Job Grade', 'Status'];
+    const rows = filtered.map(e => [
+      e.personalNumber,
+      `${e.firstName} ${e.lastName}`,
+      e.department || '',
+      e.jobGrade || '',
+      e.status
+    ]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'employee_report.csv';
+    a.click();
+  };
+
+  const total = employees.length;
+  const active = employees.filter(e => e.status === "Active").length;
+  const pending = employees.filter(e => e.status === "Pending Review").length;
+  const onLeave = employees.filter(e => e.status === "On Leave").length;
+
+  return (
+    <div>
+      <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>Reports</h2>
+      
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize:12, color:C.muted }}>Total Employees</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{total}</div>
+        </div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize:12, color:C.muted }}>Active</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{active}</div>
+        </div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize:12, color:C.muted }}>Pending Review</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{pending}</div>
+        </div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize:12, color:C.muted }}>On Leave</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{onLeave}</div>
+        </div>
+      </div>
+
+      <div style={{ ...S.card, marginBottom:20 }}>
+        <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"flex-end" }}>
+          <div style={{ minWidth:180 }}>
+            <label style={S.label}>Department</label>
+            <select value={filterDept} onChange={(e) => setFilterDept(e.target.value)} style={S.input}>
+              <option value="All">All Departments</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div style={{ minWidth:150 }}>
+            <label style={S.label}>Job Grade</label>
+            <select value={filterGrade} onChange={(e) => setFilterGrade(e.target.value)} style={S.input}>
+              <option value="All">All Grades</option>
+              {JOB_GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div style={{ minWidth:150 }}>
+            <label style={S.label}>Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={S.input}>
+              <option value="All">All Statuses</option>
+              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <button onClick={exportCSV} style={S.btn("primary")}>Download Filtered CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={S.card}>
+        <h3 style={{ fontSize:18, fontWeight:600, marginBottom:16 }}>Filtered Employees</h3>
+        {filtered.length === 0 ? (
+          <p style={{ color:C.muted, textAlign:"center", padding:20 }}>No employees match the selected filters.</p>
+        ) : (
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead>
+                <tr style={{ background:C.navy, color:C.white }}>
+                  <th style={{ padding:10, textAlign:"left" }}>Personal No.</th>
+                  <th style={{ padding:10, textAlign:"left" }}>Name</th>
+                  <th style={{ padding:10, textAlign:"left" }}>Department</th>
+                  <th style={{ padding:10, textAlign:"left" }}>Job Grade</th>
+                  <th style={{ padding:10, textAlign:"left" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.slice(0, 100).map(e => (
+                  <tr key={e.id} style={{ borderBottom:`1px solid ${C.border}` }}>
+                    <td style={{ padding:10 }}>{e.personalNumber}</td>
+                    <td style={{ padding:10 }}>{e.firstName} {e.lastName}</td>
+                    <td style={{ padding:10 }}>{e.department || '—'}</td>
+                    <td style={{ padding:10 }}>{e.jobGrade || '—'}</td>
+                    <td style={{ padding:10 }}><span style={S.badge(e.status)}>{e.status}</span></td>
+                  </tr>
+                ))}
+                {filtered.length > 100 && (
+                  <tr><td colSpan={5} style={{ padding:10, textAlign:"center", color:C.muted }}>Showing first 100 records. Download CSV for full list.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [view, setView] = useState("loading");
@@ -1342,7 +1789,6 @@ export default function App() {
 
   const fetchUserData = async (user) => {
     try {
-      // Fetch admin details
       const { data: adminData, error: adminError } = await supabase
         .from('admins')
         .select('*')
@@ -1351,10 +1797,15 @@ export default function App() {
       if (adminError) throw adminError;
       setAdmin(adminData);
 
-      // Fetch employees with related data
       const { data: employeesData, error: empError } = await supabase
         .from('employees')
-        .select('*, education(*), professional_bodies(*), work_experiences(*)')
+        .select(`
+          *,
+          education(*),
+          professional_bodies(*),
+          work_experiences(*),
+          employee_documents(*)
+        `)
         .order('created_at', { ascending: false });
       if (empError) throw empError;
       
@@ -1406,6 +1857,7 @@ export default function App() {
           startDate: w.start_date,
           endDate: w.end_date
         })),
+        documents: e.employee_documents || [],
         yearsOfExperience: e.years_of_experience,
         previousEmployer: e.previous_employer,
         previousRole: e.previous_role,
@@ -1421,15 +1873,12 @@ export default function App() {
       }));
       setEmployees(transformedEmps);
 
-      // Fetch admins
       const { data: allAdmins } = await supabase.from('admins').select('*').order('created_at', { ascending: false });
       setAdmins(allAdmins || []);
 
-      // Fetch activity logs
       const { data: logs } = await supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(150);
       setActivity(logs || []);
 
-      // Fetch leave requests with transformation
       const { data: leaves } = await supabase.from('leave_requests').select('*').order('submitted_at', { ascending: false });
       if (leaves) {
         const transformedLeaves = leaves.map(l => ({
@@ -1498,6 +1947,29 @@ export default function App() {
 
   const saveEmployee = async (emp) => {
     try {
+      if (!emp.id) {
+        const { data: existing } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('personal_number', emp.personalNumber)
+          .maybeSingle();
+        if (existing) {
+          showToast("Personal number already exists. Please use a unique number.", "error");
+          return;
+        }
+      } else {
+        const { data: existing } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('personal_number', emp.personalNumber)
+          .neq('id', emp.id)
+          .maybeSingle();
+        if (existing) {
+          showToast("Personal number already exists. Please use a unique number.", "error");
+          return;
+        }
+      }
+
       const employeeData = {
         personal_number: emp.personalNumber,
         first_name: emp.firstName,
@@ -1691,7 +2163,13 @@ export default function App() {
       emp.status = "Pending Review";
       emp.submittedBy = "self";
       await saveEmployee(emp);
-      return emp.personalNumber;
+      // fetch the newly created employee with id
+      const { data } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('personal_number', emp.personalNumber)
+        .single();
+      return data; // return full employee object
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -1716,20 +2194,33 @@ export default function App() {
     }
   };
 
-  const approveLeave = async (id) => {
-    try {
-      const { error } = await supabase
-        .from('leave_requests')
-        .update({ status: 'Approved', reviewed_at: new Date().toISOString(), reviewed_by: admin?.id })
-        .eq('id', id);
-      if (error) throw error;
-      showToast("Leave request approved");
-      fetchUserData(session.user);
-      logActivity('Leave Approved', `Leave request ${id} approved`);
-    } catch (error) {
-      showToast("Error approving leave", "error");
-    }
-  };
+ const approveLeave = async (id) => {
+  try {
+    // Get the leave request details
+    const request = leaveRequests.find(r => r.id === id);
+    if (!request) return;
+
+    // Update leave request status to Approved
+    const { error } = await supabase
+      .from('leave_requests')
+      .update({ status: 'Approved', reviewed_at: new Date().toISOString(), reviewed_by: admin?.id })
+      .eq('id', id);
+    if (error) throw error;
+
+    // Update the corresponding employee's status to 'On Leave'
+    const { error: empError } = await supabase
+      .from('employees')
+      .update({ status: 'On Leave' })
+      .eq('personal_number', request.employeePersonalNumber);
+    if (empError) throw empError;
+
+    showToast("Leave request approved. Employee is now On Leave.");
+    fetchUserData(session.user);
+    logActivity('Leave Approved', `Leave request ${id} approved, employee ${request.employeeName} marked as On Leave`);
+  } catch (error) {
+    showToast("Error approving leave", "error");
+  }
+};
 
   const declineLeave = async (id) => {
     try {
@@ -1752,7 +2243,15 @@ export default function App() {
   if (view === "login") return <LoginPage onLogin={login} />;
 
   return (
-    <AdminLayout admin={admin} view={view} navigate={navigate} onLogout={logout} toast={toast} employees={employees} activity={activity}>
+    <AdminLayout 
+      admin={admin} 
+      view={view} 
+      navigate={navigate} 
+      onLogout={logout} 
+      toast={toast} 
+      employees={employees} 
+      activity={activity}
+    >
       {view === "dashboard" && <Dashboard employees={employees} navigate={navigate} admin={admin} leaveRequests={leaveRequests} />}
       {view === "employees" && <EmployeeList employees={employees} navigate={navigate} onDelete={deleteEmployee} onApprove={approveEmployee} onRefresh={() => fetchUserData(session?.user)} />}
       {view === "add-employee" && <EmployeeForm onSave={saveEmployee} navigate={navigate} employees={employees} />}
@@ -1760,6 +2259,8 @@ export default function App() {
       {view === "view-employee" && selected && <EmployeeProfile employee={selected} navigate={navigate} onDelete={deleteEmployee} />}
       {view === "admins" && <AdminManagement admins={admins} onSave={saveAdmin} onRemove={removeAdmin} currentAdmin={admin} />}
       {view === "leave-requests" && <LeaveRequestsAdmin requests={leaveRequests} onApprove={approveLeave} onDecline={declineLeave} />}
+      {view === "reports" && <Reports employees={employees} />}
+      {view === "profile" && <Profile admin={admin} />}
     </AdminLayout>
   );
 }

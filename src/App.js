@@ -1,30 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from './supabaseClient';
 
-// ── RUN THESE SQL STATEMENTS IN SUPABASE ──────────────────────────────────────
-/*
--- 1. Create employee_documents table
-CREATE TABLE employee_documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id UUID REFERENCES employees(id) ON DELETE CASCADE,
-  file_name TEXT NOT NULL,
-  file_url TEXT NOT NULL,
-  file_type TEXT,
-  uploaded_by UUID REFERENCES admins(id),
-  uploaded_at TIMESTAMPTZ DEFAULT NOW()
-);
-ALTER TABLE employee_documents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated all" ON employee_documents FOR ALL TO authenticated USING (true);
-
--- 2. Create storage bucket 'employee-documents' (public)
---    (do this via Supabase dashboard: Storage → Create bucket)
-
--- 3. Allow public read for employees (for leave form dropdown)
-CREATE POLICY "Allow public read employees for leave form" ON employees
-  FOR SELECT TO anon USING (true);
-*/
-// ──────────────────────────────────────────────────────────────────────────────
-
 // ── GOOGLE FONTS ──────────────────────────────────────────────────────────────
 (() => {
   const l = document.createElement("link");
@@ -45,14 +21,12 @@ const GENDERS = ["Male","Female","Prefer not to say"];
 const MARITAL = ["Single","Married","Divorced","Widowed","Separated"];
 const STATUS_OPTIONS = ["Active","On Leave","Suspended","Retired","Resigned","Pending Review"];
 
-// ── COLORS ────────────────────────────────────────────────────────────────────
+// ── TWO-COLOR PALETTE ─────────────────────────────────────────────────────────
 const C = {
-  navy:"#0d1f3c", navy2:"#162d54", navy3:"#1e3a6e",
-  gold:"#c4932a", goldL:"#e8b84b",
-  white:"#ffffff", bg:"#eef1f6",
-  text:"#1a202c", muted:"#64748b",
-  success:"#059669", error:"#dc2626", warn:"#d97706", info:"#2563eb",
-  border:"#d1d9e6"
+  primary: "#0d1f3c",
+  white: "#ffffff",
+  bg: "#eef1f6",
+  border: "#d1d9e6"
 };
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -60,8 +34,8 @@ const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(3
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 const fmtTS = (d) => d ? new Date(d).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
 const initials = (n) => (n || "?").split(" ").filter(Boolean).map(x => x[0]).join("").toUpperCase().slice(0, 2);
-const AV_COLORS = ["#1e3a6e","#7c3aed","#065f46","#92400e","#9d174d","#1e4d6e","#713f12","#7f1d1d","#164e63"];
-const avColor = (n) => AV_COLORS[(n || "A").charCodeAt(0) % AV_COLORS.length];
+const AV_COLORS = [C.primary, "#2c3e50", "#34495e", "#2c3e50", "#34495e", "#2c3e50"];
+const avColor = (n) => C.primary; // all avatars same primary
 
 const emptyEmp = () => ({
   personalNumber: "", firstName: "", middleName: "", lastName: "",
@@ -86,24 +60,25 @@ const S = {
   btn: (v = "primary") => ({
     padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer",
     fontWeight: 600, fontSize: 14, fontFamily: "'Inter', sans-serif", transition: "opacity 0.15s",
-    background: v==="primary"?C.gold:v==="danger"?C.error:v==="success"?C.success:v==="ghost"?"transparent":v==="navy"?C.navy:"#e8ecf1",
-    color: ["primary","danger","success","navy"].includes(v)?C.white:v==="ghost"?C.muted:C.navy,
+    background: v==="primary"?C.primary:v==="danger"?"transparent":v==="success"?"transparent":v==="ghost"?"transparent":v==="outline"?"transparent":C.white,
+    color: v==="primary"?C.white:v==="danger"?C.primary:v==="success"?C.primary:v==="ghost"?C.primary:C.primary,
     border: v==="outline"?`1.5px solid ${C.border}`:"none",
   }),
-  input: { width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:14, fontFamily:"'Inter', sans-serif", background:C.white, color:C.text, outline:"none", boxSizing:"border-box", transition:"border 0.15s" },
-  label: { fontSize: 12, fontWeight: 600, color: C.navy, marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Inter', sans-serif" },
-  secHead: { fontSize: 15, fontWeight: 700, color: C.navy, borderLeft: `4px solid ${C.gold}`, paddingLeft: 12, marginBottom: 20, fontFamily: "'Playfair Display', serif" },
+  input: { width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:14, fontFamily:"'Inter', sans-serif", background:C.white, color:C.primary, outline:"none", boxSizing:"border-box", transition:"border 0.15s" },
+  label: { fontSize: 12, fontWeight: 600, color: C.primary, marginBottom: 5, display: "block", textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Inter', sans-serif" },
+  secHead: { fontSize: 15, fontWeight: 700, color: C.primary, borderLeft: `4px solid ${C.primary}`, paddingLeft: 12, marginBottom: 20, fontFamily: "'Playfair Display', serif" },
   badge: (c) => ({
     padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, display:"inline-block", fontFamily: "'Inter', sans-serif",
-    background: c==="Active"?"#d1fae5":c==="Pending Review"?"#fef3c7":c==="On Leave"?"#e0e7ff":c==="Suspended"?"#fee2e2":"#f1f5f9",
-    color: c==="Active"?"#065f46":c==="Pending Review"?"#92400e":c==="On Leave"?"#3730a3":c==="Suspended"?"#991b1b":"#475569"
+    background: "transparent",
+    color: C.primary,
+    border: `1px solid ${C.primary}`
   })
 };
 
 // ── REUSABLE FORM COMPONENTS ──────────────────────────────────────────────────
 const Field = ({ label, required, children, half, third }) => (
   <div style={{ flex: third?"1 1 calc(33% - 8px)":half?"1 1 calc(50% - 8px)":"1 1 100%", minWidth:0 }}>
-    <label style={S.label}>{label}{required && <span style={{color:C.error}}> *</span>}</label>
+    <label style={S.label}>{label}{required && <span style={{color:C.primary}}> *</span>}</label>
     {children}
   </div>
 );
@@ -122,6 +97,7 @@ const Sel = ({ value, onChange, options, placeholder, required }) => (
 const Textarea = ({ value, onChange, placeholder, rows=3 }) => (
   <textarea style={{ ...S.input, resize:"vertical", minHeight: rows*40 }} value={value||""} onChange={e=>onChange(e.target.value)} placeholder={placeholder} />
 );
+
 const YearSelect = ({ value, onChange, required, placeholder = "Select year" }) => {
   const currentYear = new Date().getFullYear();
   const years = [];
@@ -138,20 +114,20 @@ const YearSelect = ({ value, onChange, required, placeholder = "Select year" }) 
 
 // ── LOADING ───────────────────────────────────────────────────────────────────
 const LoadingScreen = () => (
-  <div style={{ height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:C.navy, flexDirection:"column", gap:20, fontFamily:"'Inter', sans-serif" }}>
+  <div style={{ height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:C.primary, flexDirection:"column", gap:20, fontFamily:"'Inter', sans-serif" }}>
     <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
     <div style={{ position:"relative" }}>
-      <div style={{ width:64, height:64, border:`3px solid rgba(196,147,42,0.2)`, borderRadius:"50%" }} />
-      <div style={{ width:64, height:64, border:`3px solid ${C.gold}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", position:"absolute", top:0, left:0 }} />
+      <div style={{ width:64, height:64, border:`3px solid ${C.white}20`, borderRadius:"50%" }} />
+      <div style={{ width:64, height:64, border:`3px solid ${C.white}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", position:"absolute", top:0, left:0 }} />
     </div>
-    <div style={{ color:C.gold, fontFamily:"'Playfair Display',serif", fontSize:18, animation:"pulse 1.5s ease-in-out infinite" }}>Initializing System...</div>
-    <div style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>Department of Public Communication · EMS</div>
+    <div style={{ color:C.white, fontFamily:"'Playfair Display',serif", fontSize:18, animation:"pulse 1.5s ease-in-out infinite" }}>Initializing System...</div>
+    <div style={{ color:`${C.white}80`, fontSize:12 }}>Department of Public Communication · EMS</div>
   </div>
 );
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 const Toast = ({ toast }) => toast ? (
-  <div style={{ position:"fixed", bottom:28, right:28, zIndex:9999, background:toast.type==="error"?C.error:toast.type==="info"?C.info:C.success, color:C.white, padding:"14px 22px", borderRadius:12, fontWeight:500, fontSize:14, boxShadow:"0 8px 30px rgba(0,0,0,0.25)", maxWidth:340, fontFamily:"'Inter', sans-serif", display:"flex", alignItems:"center", gap:10 }}>
+  <div style={{ position:"fixed", bottom:28, right:28, zIndex:9999, background:C.white, color:C.primary, padding:"14px 22px", borderRadius:12, fontWeight:500, fontSize:14, boxShadow:"0 8px 30px rgba(0,0,0,0.25)", maxWidth:340, fontFamily:"'Inter', sans-serif", display:"flex", alignItems:"center", gap:10, border:`1px solid ${C.primary}` }}>
     <span style={{fontSize:18}}>{toast.type==="error"?"⚠️":toast.type==="info"?"ℹ️":"✅"}</span>
     {toast.msg}
   </div>
@@ -172,11 +148,11 @@ const LoginPage = ({ onLogin }) => {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 60%, #0f2f5c 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
-      <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px rgba(196,147,42,0.15)!important;outline:none!important}`}</style>
+    <div style={{ minHeight:"100vh", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
+      <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.primary}!important;box-shadow:0 0 0 3px ${C.primary}20!important;outline:none!important}`}</style>
       <div style={{ background:C.white, borderRadius:24, overflow:"hidden", width:"100%", maxWidth:400, boxShadow:"0 40px 80px rgba(0,0,0,0.5)" }}>
-        <div style={{ background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, padding:"40px 40px 20px", textAlign:"center" }}>
-          <div style={{ width:70, height:70, borderRadius:"50%", background:`linear-gradient(135deg, ${C.gold}, ${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
+        <div style={{ background:C.primary, padding:"40px 40px 20px", textAlign:"center" }}>
+          <div style={{ width:70, height:70, borderRadius:"50%", background:C.white, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
             <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:45, height:45 }} />
           </div>
           <div style={{ color:C.white, fontSize:16, fontWeight:600, fontFamily:"'Playfair Display',serif" }}>Department of Public Communication</div>
@@ -191,12 +167,12 @@ const LoginPage = ({ onLogin }) => {
               <label style={S.label}>Password</label>
               <div style={{ position:"relative" }}>
                 <Inp type={showPass?"text":"password"} value={pass} onChange={setPass} placeholder="••••••••••" required />
-                <button type="button" onClick={()=>setShowPass(s=>!s)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:C.muted, fontSize:14 }}>
+                <button type="button" onClick={()=>setShowPass(s=>!s)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:C.primary, fontSize:14 }}>
                   {showPass ? "Hide" : "Show"}
                 </button>
               </div>
             </div>
-            {err && <div style={{ background:"#fef2f2", color:C.error, padding:"8px 12px", borderRadius:6, fontSize:12, marginBottom:12, border:`1px solid #fecaca` }}>{err}</div>}
+            {err && <div style={{ background:"#fee2e2", color:C.primary, padding:"8px 12px", borderRadius:6, fontSize:12, marginBottom:12, border:`1px solid ${C.primary}` }}>{err}</div>}
             <button style={{ ...S.btn("primary"), width:"100%", padding:"12px", fontSize:14, marginTop:12 }} disabled={loading}>
               {loading ? "Authenticating..." : "Sign In"}
             </button>
@@ -222,7 +198,7 @@ const TopNav = ({ view, navigate }) => (
     {NAV_ITEMS.map(n => {
       const active = view===n.id || (n.id==="employees" && ["view-employee","edit-employee"].includes(view));
       return (
-        <button key={n.id} onClick={()=>navigate(n.id)} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'Inter', sans-serif", fontSize:14, fontWeight:active?600:400, color:active?C.gold:C.navy, borderBottom:active?`2px solid ${C.gold}`:"none", padding:"8px 0" }}>
+        <button key={n.id} onClick={()=>navigate(n.id)} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'Inter', sans-serif", fontSize:14, fontWeight:active?600:400, color:active?C.primary:C.primary, borderBottom:active?`2px solid ${C.primary}`:"none", padding:"8px 0", opacity:active?1:0.7 }}>
           {n.label}
         </button>
       );
@@ -252,38 +228,41 @@ const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employe
 
   return (
     <div style={{ minHeight:"100vh", fontFamily:"'Inter', sans-serif", background:C.bg }}>
-      <style>{`*{box-sizing:border-box;margin:0;padding:0}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px rgba(196,147,42,0.12)!important;outline:none!important}@media print{.no-print{display:none!important}}`}</style>
+      <style>{`*{box-sizing:border-box;margin:0;padding:0}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.primary}!important;box-shadow:0 0 0 3px ${C.primary}20!important;outline:none!important}@media print{.no-print{display:none!important}}`}</style>
       
       <div style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"16px 28px", display:"flex", alignItems:"center", gap:16 }}>
         <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:45, height:45 }} />
         <div>
-          <div style={{ fontSize:12, color:C.muted, letterSpacing:1, textTransform:"uppercase" }}>Republic of Kenya</div>
-          <div style={{ fontSize:16, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style={{ fontSize:13, color:C.muted }}>State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style={{ fontSize:12, color:C.primary, letterSpacing:1, textTransform:"uppercase" }}>Republic of Kenya</div>
+          <div style={{ fontSize:16, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+          <div style={{ fontSize:13, color:C.primary, opacity:0.7 }}>State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
         </div>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:16 }}>
-          <div style={{ fontSize:14, color:C.muted }}>{new Date().toLocaleDateString("en-KE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
+          <div style={{ fontSize:14, color:C.primary }}>{new Date().toLocaleDateString("en-KE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
           <div style={{ width:1, height:30, background:C.border }} />
           
-          {/* Bell icon with dropdown */}
+          {/* Bell icon with dropdown – fixed closing tags */}
           <div style={{ position:"relative" }} ref={dropdownRef}>
-            <button onClick={() => setShowNotifications(!showNotifications)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:20 }}>
-              🔔
+            <button onClick={() => setShowNotifications(!showNotifications)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:20, color:C.primary }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: C.primary }}>
+  <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+</svg>
               {activity && activity.filter(a => !a.read).length > 0 && (
-                <span style={{ position:"absolute", top:-5, right:-5, background:C.error, color:C.white, borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ position:"absolute", top:-5, right:-5, background:C.primary, color:C.white, borderRadius:"50%", width:16, height:16, fontSize:10, display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {activity.filter(a => !a.read).length}
                 </span>
               )}
             </button>
             {showNotifications && (
               <div style={{ position:"absolute", right:0, top:35, width:280, background:C.white, borderRadius:8, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", zIndex:1000, maxHeight:350, overflowY:"auto" }}>
-                <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.border}`, fontWeight:600 }}>Recent Activity</div>
+                <div style={{ padding:"10px 16px", borderBottom:`1px solid ${C.border}`, fontWeight:600, color:C.primary }}>Recent Activity</div>
                 {activity && activity.length ? activity.slice(0,8).map(a => (
                   <div key={a.id} style={{ padding:"8px 16px", borderBottom:`1px solid ${C.border}`, fontSize:12 }}>
-                    <div style={{ fontWeight:500 }}>{a.details}</div>
-                    <div style={{ fontSize:10, color:C.muted }}>{fmtTS(a.timestamp)} · {a.adminName}</div>
+                    <div style={{ fontWeight:500, color:C.primary }}>{a.details}</div>
+                    <div style={{ fontSize:10, color:C.primary, opacity:0.7 }}>{fmtTS(a.timestamp)} · {a.adminName}</div>
                   </div>
-                )) : <div style={{ padding:"16px", textAlign:"center", color:C.muted }}>No recent activity</div>}
+                )) : <div style={{ padding:"16px", textAlign:"center", color:C.primary }}>No recent activity</div>}
               </div>
             )}
           </div>
@@ -293,15 +272,15 @@ const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employe
           {/* User menu */}
           <div style={{ position:"relative" }} ref={userMenuRef}>
             <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:8, padding:"4px 8px", borderRadius:20, background:C.bg }}>
-              <span style={{ fontSize:14, fontWeight:600, color:C.navy }}>{admin?.name}</span>
-              <span style={{ fontSize:12, color:C.muted }}>▼</span>
+              <span style={{ fontSize:14, fontWeight:600, color:C.primary }}>{admin?.name}</span>
+              <span style={{ fontSize:12, color:C.primary, opacity:0.7 }}>▼</span>
             </button>
             {showUserMenu && (
               <div style={{ position:"absolute", right:0, top:40, width:180, background:C.white, borderRadius:8, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", zIndex:1000 }}>
-                <button onClick={() => { setShowUserMenu(false); navigate("profile"); }} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", borderBottom:`1px solid ${C.border}` }}>
+                <button onClick={() => { setShowUserMenu(false); navigate("profile"); }} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", borderBottom:`1px solid ${C.border}`, color:C.primary }}>
                   View Profile
                 </button>
-                <button onClick={onLogout} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", color:C.error }}>
+                <button onClick={onLogout} style={{ width:"100%", padding:"10px 16px", border:"none", background:"none", cursor:"pointer", textAlign:"left", color:C.primary }}>
                   Sign Out
                 </button>
               </div>
@@ -324,17 +303,17 @@ const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employe
 const Profile = ({ admin }) => {
   return (
     <div>
-      <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>My Profile</h2>
+      <h2 style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>My Profile</h2>
       <div style={S.card}>
         <div style={{ display:"flex", alignItems:"center", gap:24 }}>
-          <div style={{ width:80, height:80, borderRadius:"50%", background:`linear-gradient(135deg, ${C.gold}, ${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, fontWeight:800, color:C.navy }}>
+          <div style={{ width:80, height:80, borderRadius:"50%", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, fontWeight:800, color:C.white }}>
             {initials(admin?.name)}
           </div>
           <div>
-            <div style={{ fontSize:20, fontWeight:600 }}>{admin?.name}</div>
-            <div style={{ fontSize:14, color:C.muted }}>{admin?.email}</div>
-            <div style={{ fontSize:14, color:C.muted }}>Role: {admin?.role}</div>
-            <div style={{ fontSize:12, color:C.gold, marginTop:4 }}>Member since {fmtDate(admin?.created_at)}</div>
+            <div style={{ fontSize:20, fontWeight:600, color:C.primary }}>{admin?.name}</div>
+            <div style={{ fontSize:14, color:C.primary, opacity:0.7 }}>{admin?.email}</div>
+            <div style={{ fontSize:14, color:C.primary, opacity:0.7 }}>Role: {admin?.role}</div>
+            <div style={{ fontSize:12, color:C.primary, marginTop:4 }}>Member since {fmtDate(admin?.created_at)}</div>
           </div>
         </div>
       </div>
@@ -350,40 +329,40 @@ const Dashboard = ({ employees, navigate, admin, leaveRequests }) => {
 
   return (
     <div>
-      <h1 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:24 }}>Dashboard</h1>
+      <h1 style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif", marginBottom:24 }}>Dashboard</h1>
 
-      <div style={{ ...S.card, background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy2} 100%)`, marginBottom:24 }}>
+      <div style={{ ...S.card, background:C.primary, marginBottom:24 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:16, fontWeight:700, color:C.white, fontFamily:"'Playfair Display',serif", marginBottom:6 }}>Employee Self-Registration Portal</div>
-            <div style={{ background:"rgba(0,0,0,0.2)", padding:"10px 16px", borderRadius:8, fontSize:12, fontFamily:"monospace", color:C.goldL, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:500 }}>{regLink}</div>
+            <div style={{ background:`${C.white}20`, padding:"10px 16px", borderRadius:8, fontSize:12, fontFamily:"monospace", color:C.white, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:500 }}>{regLink}</div>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={()=>{navigator.clipboard.writeText(regLink); alert("Link copied!");}} style={{ ...S.btn("primary"), background:C.gold }}>Copy Link</button>
+            <button onClick={()=>{navigator.clipboard.writeText(regLink); alert("Link copied!");}} style={{ ...S.btn("primary"), background:C.white, color:C.primary }}>Copy Link</button>
           </div>
         </div>
       </div>
 
-      <div style={{ ...S.card, background:`linear-gradient(135deg, ${C.navy2} 0%, ${C.navy3} 100%)`, marginBottom:24 }}>
+      <div style={{ ...S.card, background:C.primary, marginBottom:24 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:16, fontWeight:700, color:C.white, fontFamily:"'Playfair Display',serif", marginBottom:6 }}>Employee Leave Request Portal</div>
-            <div style={{ background:"rgba(0,0,0,0.2)", padding:"10px 16px", borderRadius:8, fontSize:12, fontFamily:"monospace", color:C.goldL, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:500 }}>{leaveLink}</div>
+            <div style={{ background:`${C.white}20`, padding:"10px 16px", borderRadius:8, fontSize:12, fontFamily:"monospace", color:C.white, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:500 }}>{leaveLink}</div>
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={()=>{navigator.clipboard.writeText(leaveLink); alert("Link copied!");}} style={{ ...S.btn("primary"), background:C.gold }}>Copy Link</button>
+            <button onClick={()=>{navigator.clipboard.writeText(leaveLink); alert("Link copied!");}} style={{ ...S.btn("primary"), background:C.white, color:C.primary }}>Copy Link</button>
           </div>
         </div>
       </div>
 
       <div style={{ ...S.card }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-          <h3 style={{ fontSize:18, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>Leave Requests</h3>
+          <h3 style={{ fontSize:18, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>Leave Requests</h3>
           {pendingLeaves > 0 && (
-            <span style={{ background:C.warn, color:C.white, padding:"4px 10px", borderRadius:20, fontSize:12 }}>{pendingLeaves} pending</span>
+            <span style={S.badge("Pending")}>{pendingLeaves} pending</span>
           )}
         </div>
-        <p style={{ color:C.muted, marginBottom:16 }}>{pendingLeaves} leave request{pendingLeaves!==1?"s":""} awaiting review.</p>
+        <p style={{ color:C.primary, opacity:0.7, marginBottom:16 }}>{pendingLeaves} leave request{pendingLeaves!==1?"s":""} awaiting review.</p>
         <button onClick={()=>navigate("leave-requests")} style={S.btn("primary")}>Manage Leave Requests</button>
       </div>
     </div>
@@ -417,8 +396,8 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>Employee Database</div>
-          <div style={{ color:C.muted, fontSize:14 }}>{filtered.length} record{filtered.length!==1?"s":""}</div>
+          <div style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>Employee Database</div>
+          <div style={{ color:C.primary, opacity:0.7, fontSize:14 }}>{filtered.length} record{filtered.length!==1?"s":""}</div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={exportCSV} style={S.btn("outline")}>Export CSV</button>
@@ -439,7 +418,7 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
           {STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}
         </select>
         {(search||deptF!=="All"||statusF!=="All") && (
-          <button onClick={()=>{setSearch("");setDeptF("All");setStatusF("All");setPage(1);}} style={{ ...S.btn("ghost"), color:C.error, fontSize:13 }}>✕ Clear</button>
+          <button onClick={()=>{setSearch("");setDeptF("All");setStatusF("All");setPage(1);}} style={{ ...S.btn("ghost"), color:C.primary, fontSize:13 }}>✕ Clear</button>
         )}
       </div>
 
@@ -447,29 +426,32 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
             <thead>
-              <tr style={{ background:C.navy, color:C.white }}>
-                {["","Personal No.","Full Name","Department","Job Title","Grade","Type","County","Status","Actions"].map(h=>(
-                  <th key={h} style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>{h}</th>
-                ))}
+              <tr style={{ background:C.primary, color:C.white }}>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Personal No.</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Full Name</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Department</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Job Title</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Grade</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Type</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>County</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Status</th>
+                <th style={{ padding:"12px 14px", textAlign:"left", fontWeight:600, fontSize:11, whiteSpace:"nowrap", letterSpacing:0.5 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {paged.length===0 ? (
-                <tr><td colSpan={10} style={{ textAlign:"center", padding:60, color:C.muted }}>
+                <tr><td colSpan={9} style={{ textAlign:"center", padding:60, color:C.primary }}>
                   {employees.length ? "No employees match your search." : "No employees yet."}
                 </td></tr>
               ) : paged.map((e,i) => (
                 <tr key={e.id} style={{ borderBottom:`1px solid ${C.border}`, background:i%2===0?C.white:"#fafbfc" }}>
-                  <td style={{ padding:"10px 14px" }}>
-                    <div style={{ width:34, height:34, borderRadius:"50%", background:avColor(`${e.firstName}${e.lastName}`), display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:C.white }}>{initials(`${e.firstName} ${e.lastName}`)}</div>
-                  </td>
-                  <td style={{ padding:"10px 14px", fontFamily:"monospace", fontSize:12, color:C.gold, fontWeight:700, whiteSpace:"nowrap" }}>{e.personalNumber}</td>
-                  <td style={{ padding:"10px 14px", fontWeight:600, color:C.text, whiteSpace:"nowrap" }}>{e.firstName} {e.middleName} {e.lastName}</td>
-                  <td style={{ padding:"10px 14px", color:C.muted, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.department||"—"}</td>
-                  <td style={{ padding:"10px 14px", whiteSpace:"nowrap" }}>{e.jobTitle||"—"}</td>
-                  <td style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:C.navy }}>{e.jobGrade||"—"}</td>
-                  <td style={{ padding:"10px 14px", color:C.muted, whiteSpace:"nowrap" }}>{e.employmentType?.split(" ")[0]||"—"}</td>
-                  <td style={{ padding:"10px 14px" }}>{e.county||"—"}</td>
+                  <td style={{ padding:"10px 14px", fontFamily:"monospace", fontSize:12, color:C.primary, fontWeight:700, whiteSpace:"nowrap" }}>{e.personalNumber}</td>
+                  <td style={{ padding:"10px 14px", fontWeight:600, color:C.primary, whiteSpace:"nowrap" }}>{e.firstName} {e.middleName} {e.lastName}</td>
+                  <td style={{ padding:"10px 14px", color:C.primary, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.department||"—"}</td>
+                  <td style={{ padding:"10px 14px", whiteSpace:"nowrap", color:C.primary }}>{e.jobTitle||"—"}</td>
+                  <td style={{ padding:"10px 14px", textAlign:"center", fontWeight:700, color:C.primary }}>{e.jobGrade||"—"}</td>
+                  <td style={{ padding:"10px 14px", color:C.primary, whiteSpace:"nowrap" }}>{e.employmentType?.split(" ")[0]||"—"}</td>
+                  <td style={{ padding:"10px 14px", color:C.primary }}>{e.county||"—"}</td>
                   <td style={{ padding:"10px 14px" }}><span style={S.badge(e.status)}>{e.status}</span></td>
                   <td style={{ padding:"10px 14px" }}>
                     <div style={{ display:"flex", gap:4 }}>
@@ -488,7 +470,7 @@ const EmployeeList = ({ employees, navigate, onDelete, onApprove, onRefresh }) =
         </div>
         {totalPages>1 && (
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 20px", borderTop:`1px solid ${C.border}` }}>
-            <div style={{ color:C.muted, fontSize:13 }}>Page {page} of {totalPages}</div>
+            <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>Page {page} of {totalPages}</div>
             <div style={{ display:"flex", gap:6 }}>
               <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} style={{ ...S.btn("outline"), padding:"6px 12px", fontSize:12 }}>← Prev</button>
               {Array.from({length:Math.min(5,totalPages)},(_,i)=>{const p=Math.max(1,Math.min(totalPages-4,page-2))+i; return (
@@ -538,7 +520,7 @@ const EmployeeDocuments = ({ employeeId, documents, onUpload, onDelete, isEditin
       {documents && documents.length > 0 ? (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: C.navy, color: C.white }}>
+            <tr style={{ background: C.primary, color: C.white }}>
               <th style={{ padding: 10, textAlign: 'left' }}>File Name</th>
               <th style={{ padding: 10, textAlign: 'left' }}>Type</th>
               <th style={{ padding: 10, textAlign: 'left' }}>Uploaded</th>
@@ -549,7 +531,7 @@ const EmployeeDocuments = ({ employeeId, documents, onUpload, onDelete, isEditin
             {documents.map(doc => (
               <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                 <td style={{ padding: 10 }}>
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.navy }}>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.primary }}>
                     {doc.file_name}
                   </a>
                 </td>
@@ -557,7 +539,7 @@ const EmployeeDocuments = ({ employeeId, documents, onUpload, onDelete, isEditin
                 <td style={{ padding: 10 }}>{fmtDate(doc.uploaded_at)}</td>
                 {isEditing && (
                   <td style={{ padding: 10 }}>
-                    <button onClick={() => onDelete(doc)} style={{ ...S.btn('danger'), padding: '4px 10px', fontSize: 12 }}>
+                    <button onClick={() => onDelete(doc)} style={{ ...S.btn("danger"), padding: '4px 10px', fontSize: 12 }}>
                       Delete
                     </button>
                   </td>
@@ -567,7 +549,7 @@ const EmployeeDocuments = ({ employeeId, documents, onUpload, onDelete, isEditin
           </tbody>
         </table>
       ) : (
-        <p style={{ color: C.muted }}>No documents uploaded yet.</p>
+        <p style={{ color: C.primary, opacity: 0.7 }}>No documents uploaded yet.</p>
       )}
     </div>
   );
@@ -705,19 +687,19 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
   };
 
   const TABS = ["Personal Info","Employment","Deployment","Education","Prof. Bodies","Work Experience","Emergency","Documents"];
-  const tabBtn = (i) => ({ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"'Inter', sans-serif", fontSize:13, fontWeight:tab===i?700:400, background:tab===i?C.gold:"transparent", color:tab===i?C.white:C.navy, transition:"all 0.15s" });
+  const tabBtn = (i) => ({ padding:"8px 16px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"'Inter', sans-serif", fontSize:13, fontWeight:tab===i?700:400, background:tab===i?C.primary:"transparent", color:tab===i?C.white:C.primary, transition:"all 0.15s" });
 
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:22 }}>
-        <button onClick={()=>navigate("employees")} style={{ ...S.btn("ghost"), color:C.muted, padding:"8px 12px" }}>← Back</button>
+        <button onClick={()=>navigate("employees")} style={{ ...S.btn("ghost"), color:C.primary, padding:"8px 12px" }}>← Back</button>
         <div>
-          <div style={{ fontSize:22, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>{employee?"Edit Employee Record":"Add New Employee"}</div>
-          <div style={{ color:C.muted, fontSize:13 }}>Personal Number: <span style={{ fontWeight:700, color:C.gold, fontFamily:"monospace" }}>{form.personalNumber}</span></div>
+          <div style={{ fontSize:22, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>{employee?"Edit Employee Record":"Add New Employee"}</div>
+          <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>Personal Number: <span style={{ fontWeight:700, color:C.primary, fontFamily:"monospace" }}>{form.personalNumber}</span></div>
         </div>
       </div>
 
-      <div style={{ background:C.white, borderRadius:"12px 12px 0 0", padding:"10px 14px", borderBottom:`2px solid ${C.gold}`, display:"flex", gap:4, flexWrap:"wrap", boxShadow:"0 2px 16px rgba(13,31,60,0.08)" }}>
+      <div style={{ background:C.white, borderRadius:"12px 12px 0 0", padding:"10px 14px", borderBottom:`2px solid ${C.primary}`, display:"flex", gap:4, flexWrap:"wrap", boxShadow:"0 2px 16px rgba(13,31,60,0.08)" }}>
         {TABS.map((t,i)=><button key={i} style={tabBtn(i)} onClick={()=>setTab(i)}>{i+1}. {t}</button>)}
       </div>
 
@@ -725,7 +707,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
         {tab===0 && (
           <div>
             <div style={S.secHead}>Personal Information</div>
-            {validationError && <div style={{ color:C.error, marginBottom:10 }}>{validationError}</div>}
+            {validationError && <div style={{ color:C.primary, marginBottom:10 }}>{validationError}</div>}
             <div style={{ display:"flex", flexWrap:"wrap", gap:16 }}>
               <Field label="First Name" required half><Inp value={form.firstName} onChange={v=>set("firstName",v)} required /></Field>
               <Field label="Middle Name" half><Inp value={form.middleName} onChange={v=>set("middleName",v)} /></Field>
@@ -779,14 +761,14 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
             {form.education.map((e,i) => (
               <div key={e.id||i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                  <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Qualification {i+1}</div>
+                  <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Qualification {i+1}</div>
                   {i>0 && <button onClick={()=>rmEdu(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
                   <Field label="Education Level" half><Sel value={e.level} onChange={v=>setEdu(i,"level",v)} options={EDUCATION_LEVELS} /></Field>
                   <Field label="Year Completed" half>
-  <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
-</Field>
+                    <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
+                  </Field>
                   <Field label="Institution / University" half><Inp value={e.institution} onChange={v=>setEdu(i,"institution",v)} placeholder="e.g. University of Nairobi" /></Field>
                   <Field label="Field of Study / Course" half><Inp value={e.fieldOfStudy} onChange={v=>setEdu(i,"fieldOfStudy",v)} placeholder="e.g. Mass Communication" /></Field>
                 </div>
@@ -802,7 +784,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
             {form.professionalBodies.map((p,i) => (
               <div key={p.id||i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                  <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Membership {i+1}</div>
+                  <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Membership {i+1}</div>
                   {i>0 && <button onClick={()=>rmProf(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
@@ -822,7 +804,7 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
             {form.workExperiences.map((exp, i) => (
               <div key={exp.id || i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                  <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Experience {i+1}</div>
+                  <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Experience {i+1}</div>
                   {i>0 && <button onClick={()=>rmWork(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                 </div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
@@ -891,8 +873,8 @@ const EmployeeForm = ({ employee, onSave, navigate, employees }) => {
 // ── EMPLOYEE PROFILE (with Documents section) ─────────────────────────────────
 const Row = ({ label, value }) => (
   <div style={{ display:"flex", gap:12, padding:"9px 0", borderBottom:`1px solid ${C.border}` }}>
-    <div style={{ width:190, color:C.muted, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:0.4, flexShrink:0, paddingTop:1 }}>{label}</div>
-    <div style={{ fontSize:13, color:C.text, fontWeight:500, flex:1 }}>{value||"—"}</div>
+    <div style={{ width:190, color:C.primary, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:0.4, flexShrink:0, paddingTop:1 }}>{label}</div>
+    <div style={{ fontSize:13, color:C.primary, fontWeight:500, flex:1 }}>{value||"—"}</div>
   </div>
 );
 
@@ -902,27 +884,27 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
     <div>
       <div className="no-print" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:22, flexWrap:"wrap", gap:12 }}>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-          <button onClick={()=>navigate("employees")} style={{ ...S.btn("ghost"), color:C.muted }}>← Back</button>
-          <div style={{ fontSize:22, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>Employee Profile</div>
+          <button onClick={()=>navigate("employees")} style={{ ...S.btn("ghost"), color:C.primary }}>← Back</button>
+          <div style={{ fontSize:22, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>Employee Profile</div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={()=>window.print()} style={S.btn("outline")}>Print</button>
           <button onClick={()=>navigate("edit-employee",e)} style={S.btn("primary")}>✏ Edit Record</button>
-          <button onClick={()=>{if(window.confirm(`Permanently remove ${fullName} from the system?`))onDelete(e.id);}} style={S.btn("danger")}>🗑 Delete</button>
+          <button onClick={()=>{if(window.confirm(`Permanently remove ${fullName} from the system?`))onDelete(e.id);}} style={{ ...S.btn("danger"), padding:"5px 10px", fontSize:12 }}>🗑 Delete</button>
         </div>
       </div>
 
-      <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy3} 100%)`, borderRadius:14, padding:"24px 28px", marginBottom:20, display:"flex", gap:22, alignItems:"center", boxShadow:"0 4px 24px rgba(13,31,60,0.2)" }}>
-        <div style={{ width:76, height:76, borderRadius:"50%", background:avColor(`${e.firstName}${e.lastName}`), display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, fontWeight:800, color:C.white, flexShrink:0, border:`3px solid ${C.gold}`, boxShadow:`0 0 0 6px rgba(196,147,42,0.15)` }}>
+      <div style={{ background:C.primary, borderRadius:14, padding:"24px 28px", marginBottom:20, display:"flex", gap:22, alignItems:"center", boxShadow:"0 4px 24px rgba(13,31,60,0.2)" }}>
+        <div style={{ width:76, height:76, borderRadius:"50%", background:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, fontWeight:800, color:C.primary }}>
           {initials(fullName)}
         </div>
         <div style={{ flex:1 }}>
           <div style={{ fontSize:26, fontWeight:700, color:C.white, fontFamily:"'Playfair Display',serif", marginBottom:4 }}>{fullName}</div>
-          <div style={{ color:C.gold, fontSize:14, fontWeight:600, marginBottom:6 }}>{e.jobTitle||"—"} {e.department?`— ${e.department}`:""}</div>
+          <div style={{ color:C.white, fontSize:14, fontWeight:600, marginBottom:6 }}>{e.jobTitle||"—"} {e.department?`— ${e.department}`:""}</div>
           <div style={{ display:"flex", gap:20, flexWrap:"wrap" }}>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12 }}>Personal No: <span style={{ color:C.goldL, fontFamily:"monospace", fontWeight:700 }}>{e.personalNumber}</span></div>
-            {e.employmentDate && <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12 }}>Employed: <span style={{ color:"rgba(255,255,255,0.9)" }}>{fmtDate(e.employmentDate)}</span></div>}
-            {e.jobGrade && <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12 }}>Grade: <span style={{ color:"rgba(255,255,255,0.9)", fontWeight:700 }}>{e.jobGrade}</span></div>}
+            <div style={{ color:`${C.white}80`, fontSize:12 }}>Personal No: <span style={{ color:C.white, fontFamily:"monospace", fontWeight:700 }}>{e.personalNumber}</span></div>
+            {e.employmentDate && <div style={{ color:`${C.white}80`, fontSize:12 }}>Employed: <span style={{ color:C.white }}>{fmtDate(e.employmentDate)}</span></div>}
+            {e.jobGrade && <div style={{ color:`${C.white}80`, fontSize:12 }}>Grade: <span style={{ color:C.white, fontWeight:700 }}>{e.jobGrade}</span></div>}
           </div>
         </div>
         <span style={S.badge(e.status)}>{e.status}</span>
@@ -961,29 +943,29 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
           <div style={S.secHead}>Education Background</div>
           {(e.education||[]).filter(x=>x.level||x.institution).length ? (e.education||[]).filter(x=>x.level||x.institution).map((ed,i) => (
             <div key={i} style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
-              <div style={{ fontWeight:700, color:C.navy, fontSize:14 }}>{ed.level||"Not specified"}</div>
-              <div style={{ color:C.muted, fontSize:13, marginTop:2 }}>{ed.institution}{ed.fieldOfStudy?` · ${ed.fieldOfStudy}`:""}</div>
-              {ed.yearCompleted && <div style={{ color:C.gold, fontSize:12, fontWeight:600, marginTop:2 }}>Year: {ed.yearCompleted}</div>}
+              <div style={{ fontWeight:700, color:C.primary, fontSize:14 }}>{ed.level||"Not specified"}</div>
+              <div style={{ color:C.primary, opacity:0.7, fontSize:13, marginTop:2 }}>{ed.institution}{ed.fieldOfStudy?` · ${ed.fieldOfStudy}`:""}</div>
+              {ed.yearCompleted && <div style={{ color:C.primary, fontSize:12, fontWeight:600, marginTop:2 }}>Year: {ed.yearCompleted}</div>}
             </div>
-          )) : <div style={{ color:C.muted, fontSize:13 }}>No education records added.</div>}
+          )) : <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>No education records added.</div>}
 
           <div style={{ marginTop:18 }}><div style={S.secHead}>Work Experience</div></div>
           {(e.workExperiences||[]).filter(x=>x.employer||x.role).length ? (e.workExperiences||[]).filter(x=>x.employer||x.role).map((exp,i) => (
             <div key={i} style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
-              <div style={{ fontWeight:700, color:C.navy, fontSize:14 }}>{exp.role || "Role not specified"}</div>
-              <div style={{ color:C.muted, fontSize:13, marginTop:2 }}>{exp.employer}{exp.duration?` · ${exp.duration}`:""}</div>
-              {(exp.startDate || exp.endDate) && <div style={{ color:C.muted, fontSize:12, marginTop:2 }}>{exp.startDate?fmtDate(exp.startDate):"?"} – {exp.endDate?fmtDate(exp.endDate):"Present"}</div>}
+              <div style={{ fontWeight:700, color:C.primary, fontSize:14 }}>{exp.role || "Role not specified"}</div>
+              <div style={{ color:C.primary, opacity:0.7, fontSize:13, marginTop:2 }}>{exp.employer}{exp.duration?` · ${exp.duration}`:""}</div>
+              {(exp.startDate || exp.endDate) && <div style={{ color:C.primary, opacity:0.6, fontSize:12, marginTop:2 }}>{exp.startDate?fmtDate(exp.startDate):"?"} – {exp.endDate?fmtDate(exp.endDate):"Present"}</div>}
             </div>
-          )) : <div style={{ color:C.muted, fontSize:13 }}>No work experience added.</div>}
+          )) : <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>No work experience added.</div>}
 
           <div style={{ marginTop:18 }}><div style={S.secHead}>Professional Bodies</div></div>
           {(e.professionalBodies||[]).filter(x=>x.bodyName).length ? (e.professionalBodies||[]).filter(x=>x.bodyName).map((p,i) => (
             <div key={i} style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
-              <div style={{ fontWeight:700, color:C.navy, fontSize:14 }}>{p.bodyName}</div>
-              <div style={{ color:C.muted, fontSize:13, marginTop:2 }}>Membership No: {p.membershipNo||"—"}</div>
-              {p.registrationDate && <div style={{ color:C.muted, fontSize:12, marginTop:2 }}>Registered: {fmtDate(p.registrationDate)}</div>}
+              <div style={{ fontWeight:700, color:C.primary, fontSize:14 }}>{p.bodyName}</div>
+              <div style={{ color:C.primary, opacity:0.7, fontSize:13, marginTop:2 }}>Membership No: {p.membershipNo||"—"}</div>
+              {p.registrationDate && <div style={{ color:C.primary, opacity:0.6, fontSize:12, marginTop:2 }}>Registered: {fmtDate(p.registrationDate)}</div>}
             </div>
-          )) : <div style={{ color:C.muted, fontSize:13 }}>No professional memberships added.</div>}
+          )) : <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>No professional memberships added.</div>}
 
           <div style={{ marginTop:18 }}><div style={S.secHead}>Emergency Contact</div></div>
           <Row label="Full Name" value={e.emergencyName} />
@@ -1003,7 +985,7 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
           {e.documents && e.documents.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: C.navy, color: C.white }}>
+                <tr style={{ background: C.primary, color: C.white }}>
                   <th style={{ padding: 10, textAlign: 'left' }}>File Name</th>
                   <th style={{ padding: 10, textAlign: 'left' }}>Uploaded</th>
                 </tr>
@@ -1012,7 +994,7 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
                 {e.documents.map(doc => (
                   <tr key={doc.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                     <td style={{ padding: 10 }}>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.navy }}>
+                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ color: C.primary }}>
                         {doc.file_name}
                       </a>
                     </td>
@@ -1022,7 +1004,7 @@ const EmployeeProfile = ({ employee:e, navigate, onDelete }) => {
               </tbody>
             </table>
           ) : (
-            <p style={{ color: C.muted }}>No documents uploaded.</p>
+            <p style={{ color: C.primary, opacity: 0.7 }}>No documents uploaded.</p>
           )}
         </div>
       </div>
@@ -1048,15 +1030,15 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22 }}>
         <div>
-          <div style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>Admin Management</div>
-          <div style={{ color:C.muted, fontSize:14 }}>{admins.length} administrator(s)</div>
+          <div style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>Admin Management</div>
+          <div style={{ color:C.primary, opacity:0.7, fontSize:14 }}>{admins.length} administrator(s)</div>
         </div>
         <button onClick={()=>setShowForm(s=>!s)} style={S.btn("primary")}>+ Add Administrator</button>
       </div>
 
       {showForm && (
-        <div style={{ ...S.card, borderLeft:`4px solid ${C.gold}`, marginBottom:20 }}>
-          <div style={{ fontSize:16, fontWeight:700, color:C.navy, marginBottom:18, fontFamily:"'Playfair Display',serif" }}>New Administrator Account</div>
+        <div style={{ ...S.card, borderLeft:`4px solid ${C.primary}`, marginBottom:20 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:C.primary, marginBottom:18, fontFamily:"'Playfair Display',serif" }}>New Administrator Account</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:14 }}>
             <Field label="Full Name" required half><Inp value={form.name} onChange={v=>set("name",v)} placeholder="e.g. John Kamau" /></Field>
             <Field label="Email Address" required half><Inp type="email" value={form.email} onChange={v=>set("email",v)} placeholder="john.kamau@mict.go.ke" /></Field>
@@ -1072,7 +1054,7 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
       <div style={{ ...S.card, padding:0, overflow:"hidden" }}>
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
           <thead>
-            <tr style={{ background:C.navy, color:C.white }}>
+            <tr style={{ background:C.primary, color:C.white }}>
               {["Administrator","Email Address","Role","Date Added","Actions"].map(h=>(
                 <th key={h} style={{ padding:"12px 18px", textAlign:"left", fontSize:11, fontWeight:600, letterSpacing:0.5 }}>{h}</th>
               ))}
@@ -1083,21 +1065,21 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
               <tr key={a.id} style={{ borderBottom:`1px solid ${C.border}`, background:i%2?"#fafbfc":C.white }}>
                 <td style={{ padding:"14px 18px" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:38, height:38, borderRadius:"50%", background:avColor(a.name), display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:C.white, flexShrink:0 }}>{initials(a.name)}</div>
+                    <div style={{ width:38, height:38, borderRadius:"50%", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, color:C.white }}>{initials(a.name)}</div>
                     <div>
-                      <div style={{ fontWeight:600 }}>{a.name}</div>
-                      {a.is_super && <div style={{ fontSize:11, color:C.gold, fontWeight:700 }}>SUPER ADMIN</div>}
-                      {a.id===currentAdmin?.id && !a.is_super && <div style={{ fontSize:11, color:C.info, fontWeight:600 }}>• Current Session</div>}
+                      <div style={{ fontWeight:600, color:C.primary }}>{a.name}</div>
+                      {a.is_super && <div style={{ fontSize:11, color:C.primary, fontWeight:700 }}>SUPER ADMIN</div>}
+                      {a.id===currentAdmin?.id && !a.is_super && <div style={{ fontSize:11, color:C.primary, opacity:0.7 }}>• Current Session</div>}
                     </div>
                   </div>
                 </td>
-                <td style={{ padding:"14px 18px", color:C.muted }}>{a.email}</td>
+                <td style={{ padding:"14px 18px", color:C.primary, opacity:0.7 }}>{a.email}</td>
                 <td style={{ padding:"14px 18px" }}><span style={S.badge("Active")}>{a.role}</span></td>
-                <td style={{ padding:"14px 18px", color:C.muted, fontSize:13 }}>{fmtDate(a.created_at)}</td>
+                <td style={{ padding:"14px 18px", color:C.primary, opacity:0.7, fontSize:13 }}>{fmtDate(a.created_at)}</td>
                 <td style={{ padding:"14px 18px" }}>
                   {!a.is_super && a.id!==currentAdmin?.id
                     ? <button onClick={()=>{if(window.confirm(`Remove ${a.name} as administrator? They will lose system access.`))onRemove(a.id);}} style={{ ...S.btn("danger"), padding:"6px 14px", fontSize:12 }}>Remove Access</button>
-                    : <span style={{ color:C.muted, fontSize:12 }}>{a.is_super?"Protected (Super Admin)":"(Your Account)"}</span>
+                    : <span style={{ color:C.primary, opacity:0.7, fontSize:12 }}>{a.is_super?"Protected (Super Admin)":"(Your Account)"}</span>
                   }
                 </td>
               </tr>
@@ -1109,7 +1091,7 @@ const AdminManagement = ({ admins, onSave, onRemove, currentAdmin }) => {
   );
 };
 
-// ── PUBLIC REGISTRATION (with document upload) ────────────────────────────────
+// ── PUBLIC REGISTRATION (with document upload and blank download buttons) ─────
 const PublicRegistration = ({ onSubmit, employees }) => {
   const [form, setForm] = useState({ 
     ...emptyEmp(), 
@@ -1196,14 +1178,241 @@ const PublicRegistration = ({ onSubmit, employees }) => {
 
   const finish = () => setStage('success');
 
+  // ── Blank PDF generation for employee registration ───────────────────
+  const generateBlankPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    if (imgData) {
+      doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+      doc.setFontSize(16);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+      doc.setFontSize(12);
+      doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 35, 33);
+    } else {
+      doc.setFontSize(16);
+      doc.text('REPUBLIC OF KENYA', 14, 15);
+      doc.setFontSize(12);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 14, 28);
+    }
+    doc.setFontSize(10);
+    doc.text(`Form generated: ${new Date().toLocaleDateString()}`, 14, 40);
+    doc.setFontSize(14);
+    doc.text('Employee Self-Registration – Blank Form', 14, 50);
+
+    let y = 60;
+    const addSection = (title, fields) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+        if (imgData) {
+          doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+          doc.setFontSize(16);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+          doc.setFontSize(12);
+          doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 35, 33);
+        } else {
+          doc.setFontSize(16);
+          doc.text('REPUBLIC OF KENYA', 14, 15);
+          doc.setFontSize(12);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 14, 28);
+        }
+        doc.setFontSize(10);
+        doc.text('Form continued...', 14, 40);
+        y = 45;
+      }
+      doc.setFont(undefined, 'bold');
+      doc.text(title, 14, y);
+      y += 5;
+      doc.setFont(undefined, 'normal');
+      fields.forEach(field => {
+        doc.text(`• ${field}: __________________________`, 16, y);
+        y += 5;
+      });
+      y += 3;
+    };
+
+    addSection('Personal Information', [
+      'First Name', 'Middle Name', 'Last Name', 'Date of Birth', 'Gender',
+      'Marital Status', 'National ID', 'Personal Number', 'Nationality',
+      'KRA PIN', 'NSSF Number', 'NHIF Number', 'Phone', 'Email'
+    ]);
+
+    addSection('Employment Details', [
+      'Date of First Employment', 'Job Title', 'Job Grade', 'Employment Type',
+      'Department', 'Station'
+    ]);
+
+    addSection('Place of Deployment', [
+      'County', 'Region', 'Physical Address', 'Work Station'
+    ]);
+
+    addSection('Education (add rows as needed)', [
+      'Level', 'Institution', 'Field of Study', 'Year Completed'
+    ]);
+
+    addSection('Professional Bodies', [
+      'Body Name', 'Membership No.', 'Registration Date'
+    ]);
+
+    addSection('Work Experience', [
+      'Employer', 'Role', 'Duration', 'Start Date', 'End Date'
+    ]);
+
+    addSection('Emergency Contact', [
+      'Full Name', 'Relationship', 'Phone'
+    ]);
+
+    doc.save('employee_registration_blank.pdf');
+  };
+
+  // ── Blank Word generation for employee registration ───────────────────
+  const generateBlankWord = async () => {
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    const headerHtml = imgData ? `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <img src="${imgData}" width="60" height="60" />
+        <div>
+          <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
+          <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        </div>
+      </div>
+    ` : `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
+        <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+      </div>
+    `;
+
+    const sections = [
+      { title: 'Personal Information', fields: [
+        'First Name', 'Middle Name', 'Last Name', 'Date of Birth', 'Gender',
+        'Marital Status', 'National ID', 'Personal Number', 'Nationality',
+        'KRA PIN', 'NSSF Number', 'NHIF Number', 'Phone', 'Email'
+      ] },
+      { title: 'Employment Details', fields: [
+        'Date of First Employment', 'Job Title', 'Job Grade', 'Employment Type',
+        'Department', 'Station'
+      ] },
+      { title: 'Place of Deployment', fields: [
+        'County', 'Region', 'Physical Address', 'Work Station'
+      ] },
+      { title: 'Education (add rows as needed)', fields: [
+        'Level', 'Institution', 'Field of Study', 'Year Completed'
+      ] },
+      { title: 'Professional Bodies', fields: [
+        'Body Name', 'Membership No.', 'Registration Date'
+      ] },
+      { title: 'Work Experience', fields: [
+        'Employer', 'Role', 'Duration', 'Start Date', 'End Date'
+      ] },
+      { title: 'Emergency Contact', fields: [
+        'Full Name', 'Relationship', 'Phone'
+      ] }
+    ];
+
+    const sectionsHtml = sections.map(s => `
+      <h4 style="margin-top:20px; color:#0d1f3c;">${s.title}</h4>
+      ${s.fields.map(f => `<p><strong>${f}:</strong> __________________________</p>`).join('')}
+    `).join('');
+
+    const fullHtml = `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 20px; background: #eef1f6; }
+            .container { max-width: 800px; margin: 0 auto; }
+            h4 { margin-bottom: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${headerHtml}
+            <h2 style="color:#0d1f3c;">Employee Self-Registration – Blank Form</h2>
+            <p>Generated: ${new Date().toLocaleDateString()}</p>
+            ${sectionsHtml}
+          </div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([fullHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'employee_registration_blank.doc';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (stage === 'upload') {
     return (
       <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Inter', sans-serif", padding:20 }}>
         <div style={{ maxWidth:600, margin:"0 auto", background:C.white, borderRadius:16, padding:32, boxShadow:"0 4px 20px rgba(0,0,0,0.1)" }}>
           <div style={{ textAlign:"center", marginBottom:24 }}>
             <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:60, height:60 }} />
-            <h1 style={{ fontSize:24, color:C.navy, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Upload Documents</h1>
-            <p style={{ color:C.muted }}>You can upload your CV, certificates, or any supporting documents (optional).</p>
+            <h1 style={{ fontSize:24, color:C.primary, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Upload Documents</h1>
+            <p style={{ color:C.primary, opacity:0.7 }}>You can upload your CV, certificates, or any supporting documents (optional).</p>
           </div>
           <div style={{ marginBottom:20 }}>
             <input
@@ -1218,9 +1427,9 @@ const PublicRegistration = ({ onSubmit, employees }) => {
           </div>
           {uploadedFiles.length > 0 && (
             <div style={{ marginBottom:20 }}>
-              <h3>Uploaded Files:</h3>
+              <h3 style={{ color:C.primary }}>Uploaded Files:</h3>
               <ul>
-                {uploadedFiles.map(f => <li key={f.id}>{f.file_name}</li>)}
+                {uploadedFiles.map(f => <li key={f.id} style={{ color:C.primary }}>{f.file_name}</li>)}
               </ul>
             </div>
           )}
@@ -1235,20 +1444,20 @@ const PublicRegistration = ({ onSubmit, employees }) => {
 
   if (stage === 'success') {
     return (
-      <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
+      <div style={{ minHeight:"100vh", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
         <style>{`*{box-sizing:border-box}body{margin:0}`}</style>
         <div style={{ background:C.white, borderRadius:24, padding:"52px 48px", textAlign:"center", maxWidth:500, boxShadow:"0 40px 80px rgba(0,0,0,0.4)" }}>
           <div style={{ fontSize:72, marginBottom:20 }}>✅</div>
-          <div style={{ fontSize:28, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:10 }}>Registration Successful!</div>
-          <div style={{ color:C.muted, fontSize:15, marginBottom:24, lineHeight:1.7 }}>
+          <div style={{ fontSize:28, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif", marginBottom:10 }}>Registration Successful!</div>
+          <div style={{ color:C.primary, opacity:0.7, fontSize:15, marginBottom:24, lineHeight:1.7 }}>
             Thank you, <strong>{form.firstName} {form.lastName}</strong>. Your details have been securely submitted.
           </div>
           <div style={{ background:C.bg, borderRadius:12, padding:24, marginBottom:24 }}>
-            <div style={{ color:C.muted, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Personal Number</div>
-            <div style={{ fontSize:32, fontWeight:800, color:C.gold, fontFamily:"monospace", letterSpacing:2, marginBottom:4 }}>{newEmployee?.personalNumber}</div>
-            <div style={{ fontSize:13, color:C.muted }}>Keep this number for future reference.</div>
+            <div style={{ color:C.primary, fontSize:12, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Personal Number</div>
+            <div style={{ fontSize:32, fontWeight:800, color:C.primary, fontFamily:"monospace", letterSpacing:2, marginBottom:4 }}>{newEmployee?.personalNumber}</div>
+            <div style={{ fontSize:13, color:C.primary, opacity:0.7 }}>Keep this number for future reference.</div>
           </div>
-          <div style={{ color:C.muted, fontSize:14, lineHeight:1.7, background:"#fef3c7", padding:"16px 20px", borderRadius:12, border:"1px solid #fde68a", marginBottom:24 }}>
+          <div style={{ color:C.primary, fontSize:14, lineHeight:1.7, background:"#fee2e2", padding:"16px 20px", borderRadius:12, border:`1px solid ${C.primary}`, marginBottom:24 }}>
             <strong>⏳ Pending Review</strong> – Your record will be reviewed by an administrator.
           </div>
           <button onClick={() => window.location.href = '/'} style={{ ...S.btn("outline"), padding:"12px 24px", fontSize:15 }}>Return to Home</button>
@@ -1261,34 +1470,34 @@ const PublicRegistration = ({ onSubmit, employees }) => {
 
   return (
     <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Inter', sans-serif" }}>
-      <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.gold}!important;box-shadow:0 0 0 3px rgba(196,147,42,0.12)!important;outline:none!important}`}</style>
+      <style>{`*{box-sizing:border-box}body{margin:0}input:focus,select:focus,textarea:focus{border-color:${C.primary}!important;box-shadow:0 0 0 3px ${C.primary}20!important;outline:none!important}`}</style>
       
-      <div style={{ background:`linear-gradient(135deg, ${C.navy} 0%, ${C.navy3} 100%)`, padding:"18px 28px", display:"flex", alignItems:"center", gap:16 }}>
-        <div style={{ width:52, height:52, borderRadius:12, background:`linear-gradient(135deg,${C.gold},${C.goldL})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>
+      <div style={{ background:C.primary, padding:"18px 28px", display:"flex", alignItems:"center", gap:16 }}>
+        <div style={{ width:52, height:52, borderRadius:12, background:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>
           <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:40, height:40 }} />
         </div>
         <div>
-          <div style={{ color:C.gold, fontSize:10, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" }}>Republic of Kenya · Ministry of ICT and Digital Economy</div>
+          <div style={{ color:C.white, fontSize:10, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" }}>Republic of Kenya · Ministry of ICT and Digital Economy</div>
           <div style={{ color:C.white, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Department of Public Communication</div>
-          <div style={{ color:"rgba(255,255,255,0.55)", fontSize:11 }}>Employee Self‑Registration</div>
+          <div style={{ color:`${C.white}80`, fontSize:11 }}>Employee Self‑Registration</div>
         </div>
       </div>
 
       <div style={{ maxWidth:820, margin:"28px auto", padding:"0 20px 60px" }}>
-        <div style={{ ...S.card, textAlign:"center", borderTop:`4px solid ${C.gold}`, padding:"24px 28px", marginBottom:16 }}>
-          <div style={{ fontSize:20, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:6 }}>Employee Self-Registration</div>
-          <div style={{ color:C.muted, fontSize:13 }}>Fields marked <span style={{color:C.error}}>*</span> are required.</div>
+        <div style={{ ...S.card, textAlign:"center", borderTop:`4px solid ${C.primary}`, padding:"24px 28px", marginBottom:16 }}>
+          <div style={{ fontSize:20, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif", marginBottom:6 }}>Employee Self-Registration</div>
+          <div style={{ color:C.primary, opacity:0.7, fontSize:13 }}>Fields marked <span style={{color:C.primary}}>*</span> are required.</div>
         </div>
 
         <div style={{ display:"flex", gap:4, marginBottom:0, overflowX:"auto", paddingBottom:4 }}>
           {TABS.map((t,i) => (
-            <div key={i} onClick={()=>setTab(i)} style={{ flex:"1 0 auto", minWidth:80, textAlign:"center", padding:"9px 10px", background:i<tab?`${C.success}`:i===tab?C.gold:"#e2e8f0", borderRadius:8, fontSize:11, fontWeight:700, color:i<=tab?C.white:C.muted, cursor:"pointer", whiteSpace:"nowrap", letterSpacing:0.3 }}>
+            <div key={i} onClick={()=>setTab(i)} style={{ flex:"1 0 auto", minWidth:80, textAlign:"center", padding:"9px 10px", background:i<tab?C.primary:i===tab?C.primary:"#e2e8f0", borderRadius:8, fontSize:11, fontWeight:700, color:i<=tab?C.white:C.primary, cursor:"pointer", whiteSpace:"nowrap", letterSpacing:0.3 }}>
               {i<tab?"✓ ":""}{i+1}. {t}
             </div>
           ))}
         </div>
 
-        <div style={{ ...S.card, borderRadius:"0 0 12px 12px", marginTop:0, borderTop:`2px solid ${C.gold}` }}>
+        <div style={{ ...S.card, borderRadius:"0 0 12px 12px", marginTop:0, borderTop:`2px solid ${C.primary}` }}>
           {tab===0 && (
             <div>
               <div style={S.secHead}>Personal Information</div>
@@ -1342,14 +1551,14 @@ const PublicRegistration = ({ onSubmit, employees }) => {
               {form.education.map((e,i) => (
                 <div key={e.id||i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                    <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Qualification {i+1}</div>
+                    <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Qualification {i+1}</div>
                     {i>0 && <button onClick={()=>rmEdu(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
                     <Field label="Education Level" half><Sel value={e.level} onChange={v=>setEdu(i,"level",v)} options={EDUCATION_LEVELS} /></Field>
                     <Field label="Year Completed" half>
-  <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
-</Field>
+                      <YearSelect value={e.yearCompleted} onChange={v=>setEdu(i,"yearCompleted",v)} />
+                    </Field>
                     <Field label="Institution / University" half><Inp value={e.institution} onChange={v=>setEdu(i,"institution",v)} placeholder="e.g. University of Nairobi" /></Field>
                     <Field label="Field of Study / Course" half><Inp value={e.fieldOfStudy} onChange={v=>setEdu(i,"fieldOfStudy",v)} placeholder="e.g. Mass Communication" /></Field>
                   </div>
@@ -1364,7 +1573,7 @@ const PublicRegistration = ({ onSubmit, employees }) => {
               {form.professionalBodies.map((p,i) => (
                 <div key={p.id||i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                    <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Membership {i+1}</div>
+                    <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Membership {i+1}</div>
                     {i>0 && <button onClick={()=>rmProf(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
@@ -1383,7 +1592,7 @@ const PublicRegistration = ({ onSubmit, employees }) => {
               {form.workExperiences.map((exp, i) => (
                 <div key={exp.id || i} style={{ background:"#f8fafc", border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-                    <div style={{ fontWeight:600, color:C.navy, fontSize:14 }}>Experience {i+1}</div>
+                    <div style={{ fontWeight:600, color:C.primary, fontSize:14 }}>Experience {i+1}</div>
                     {i>0 && <button onClick={()=>rmWork(i)} style={{ ...S.btn("danger"), padding:"4px 12px", fontSize:12 }}>Remove</button>}
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:12 }}>
@@ -1427,12 +1636,21 @@ const PublicRegistration = ({ onSubmit, employees }) => {
             }
           </div>
         </div>
+
+        {/* Download buttons for blank forms */}
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <p style={{ color:C.primary, fontSize:13 }}>Need a paper form? Download a blank template:</p>
+          <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+            <button onClick={generateBlankPDF} style={S.btn("outline")}>Blank PDF</button>
+            <button onClick={generateBlankWord} style={S.btn("outline")}>Blank Word</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// ── LEAVE REQUEST PUBLIC FORM (with employee dropdown) ────────────────────────
+// ── LEAVE REQUEST PUBLIC FORM (with blank download buttons) ───────────────────
 const LeaveRequestForm = ({ onSubmit }) => {
   const [form, setForm] = useState({
     employeePersonalNumber: "",
@@ -1488,13 +1706,187 @@ const LeaveRequestForm = ({ onSubmit }) => {
     if (success) setSubmitted(true);
   };
 
+  // ── Blank PDF for leave request ────────────────────────────────────────
+  const generateBlankPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    if (imgData) {
+      doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+      doc.setFontSize(16);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+      doc.setFontSize(12);
+      doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 35, 33);
+    } else {
+      doc.setFontSize(16);
+      doc.text('REPUBLIC OF KENYA', 14, 15);
+      doc.setFontSize(12);
+      doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+      doc.setFontSize(10);
+      doc.text('Department of Public Communication', 14, 28);
+    }
+    doc.setFontSize(10);
+    doc.text(`Form generated: ${new Date().toLocaleDateString()}`, 14, 40);
+    doc.setFontSize(14);
+    doc.text('Leave Request – Blank Form', 14, 50);
+
+    let y = 60;
+    const fields = [
+      'Personal Number',
+      'Full Name',
+      'Start Date',
+      'End Date',
+      'Reason for Leave'
+    ];
+
+    fields.forEach((field, idx) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+        if (imgData) {
+          doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
+          doc.setFontSize(16);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS', 35, 20);
+          doc.setFontSize(12);
+          doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 35, 33);
+        } else {
+          doc.setFontSize(16);
+          doc.text('REPUBLIC OF KENYA', 14, 15);
+          doc.setFontSize(12);
+          doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
+          doc.setFontSize(10);
+          doc.text('Department of Public Communication', 14, 28);
+        }
+        doc.setFontSize(10);
+        doc.text('Form continued...', 14, 40);
+        y = 45;
+      }
+      doc.text(`${idx+1}. ${field}: __________________________`, 14, y);
+      y += 7;
+    });
+
+    doc.save('leave_request_blank.pdf');
+  };
+
+  // ── Blank Word for leave request ────────────────────────────────────────
+  const generateBlankWord = async () => {
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+
+    let imgData;
+    try {
+      imgData = await loadImage(`${process.env.PUBLIC_URL}/coat-of-arms.png`);
+    } catch (error) {
+      console.warn('Coat of arms image not found, using text fallback');
+      imgData = null;
+    }
+
+    const headerHtml = imgData ? `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <img src="${imgData}" width="60" height="60" />
+        <div>
+          <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
+          <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        </div>
+      </div>
+    ` : `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
+        <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+      </div>
+    `;
+
+    const fieldsHtml = `
+      <ol style="list-style:decimal; padding-left:20px;">
+        <li><strong>Personal Number:</strong> __________________________</li>
+        <li><strong>Full Name:</strong> __________________________</li>
+        <li><strong>Start Date:</strong> __________________________</li>
+        <li><strong>End Date:</strong> __________________________</li>
+        <li><strong>Reason for Leave:</strong> __________________________</li>
+      </ol>
+    `;
+
+    const fullHtml = `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 20px; background: #eef1f6; }
+            .container { max-width: 800px; margin: 0 auto; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${headerHtml}
+            <h2 style="color:#0d1f3c;">Leave Request – Blank Form</h2>
+            <p>Generated: ${new Date().toLocaleDateString()}</p>
+            ${fieldsHtml}
+          </div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([fullHtml], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'leave_request_blank.doc';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (submitted) {
     return (
-      <div style={{ minHeight:"100vh", background:`linear-gradient(160deg, ${C.navy} 0%, ${C.navy3} 100%)`, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
+      <div style={{ minHeight:"100vh", background:C.primary, display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Inter', sans-serif" }}>
         <div style={{ background:C.white, borderRadius:24, padding:"40px", textAlign:"center", maxWidth:400 }}>
           <div style={{ fontSize:48, marginBottom:20 }}>✅</div>
-          <h2 style={{ color:C.navy, marginBottom:10 }}>Leave Request Submitted</h2>
-          <p style={{ color:C.muted }}>Your request has been received and is pending approval.</p>
+          <h2 style={{ color:C.primary, marginBottom:10 }}>Leave Request Submitted</h2>
+          <p style={{ color:C.primary, opacity:0.7 }}>Your request has been received and is pending approval.</p>
           <button onClick={() => window.location.href = '/'} style={{ ...S.btn("primary"), marginTop:20 }}>Return Home</button>
         </div>
       </div>
@@ -1506,10 +1898,10 @@ const LeaveRequestForm = ({ onSubmit }) => {
       <div style={{ maxWidth:600, margin:"0 auto", background:C.white, borderRadius:16, padding:32, boxShadow:"0 4px 20px rgba(0,0,0,0.1)" }}>
         <div style={{ textAlign:"center", marginBottom:24 }}>
           <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:60, height:60 }} />
-          <h1 style={{ fontSize:24, color:C.navy, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Leave Request</h1>
-          <p style={{ color:C.muted }}>Enter your personal number to request leave.</p>
+          <h1 style={{ fontSize:24, color:C.primary, fontFamily:"'Playfair Display',serif", marginTop:10 }}>Leave Request</h1>
+          <p style={{ color:C.primary, opacity:0.7 }}>Enter your personal number to request leave.</p>
         </div>
-        {error && <div style={{ background:"#fee2e2", color:C.error, padding:10, borderRadius:6, marginBottom:16 }}>{error}</div>}
+        {error && <div style={{ background:"#fee2e2", color:C.primary, padding:10, borderRadius:6, marginBottom:16, border:`1px solid ${C.primary}` }}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <Field label="Personal Number" required>
             <div style={{ display:"flex", gap:8 }}>
@@ -1537,7 +1929,7 @@ const LeaveRequestForm = ({ onSubmit }) => {
 
           {form.employeeName && (
             <div style={{ marginBottom:16, padding:10, background:C.bg, borderRadius:8, border:`1px solid ${C.border}` }}>
-              <strong>Name:</strong> {form.employeeName}
+              <strong style={{ color:C.primary }}>Name:</strong> {form.employeeName}
             </div>
           )}
 
@@ -1573,6 +1965,15 @@ const LeaveRequestForm = ({ onSubmit }) => {
           </Field>
           <button type="submit" style={{ ...S.btn("primary"), width:"100%", marginTop:16 }} disabled={!employeeValid || loading}>Submit Request</button>
         </form>
+
+        {/* Download buttons for blank forms */}
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <p style={{ color:C.primary, fontSize:13 }}>Need a paper form? Download a blank template:</p>
+          <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+            <button onClick={generateBlankPDF} style={S.btn("outline")}>Blank PDF</button>
+            <button onClick={generateBlankWord} style={S.btn("outline")}>Blank Word</button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1587,7 +1988,7 @@ const LeaveRequestsAdmin = ({ requests, onApprove, onDecline }) => {
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-        <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif" }}>Leave Requests</h2>
+        <h2 style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>Leave Requests</h2>
         <select value={filter} onChange={e => setFilter(e.target.value)} style={{ ...S.input, width:200 }}>
           <option value="All">All</option>
           <option value="Pending">Pending</option>
@@ -1598,11 +1999,11 @@ const LeaveRequestsAdmin = ({ requests, onApprove, onDecline }) => {
 
       <div style={S.card}>
         {filtered.length === 0 ? (
-          <div style={{ textAlign:"center", padding:40, color:C.muted }}>No leave requests found.</div>
+          <div style={{ textAlign:"center", padding:40, color:C.primary }}>No leave requests found.</div>
         ) : (
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
-              <tr style={{ background:C.navy, color:C.white }}>
+              <tr style={{ background:C.primary, color:C.white }}>
                 <th style={{ padding:12, textAlign:"left" }}>Employee</th>
                 <th style={{ padding:12, textAlign:"left" }}>Personal No.</th>
                 <th style={{ padding:12, textAlign:"left" }}>Start Date</th>
@@ -1615,11 +2016,11 @@ const LeaveRequestsAdmin = ({ requests, onApprove, onDecline }) => {
             <tbody>
               {filtered.map(r => (
                 <tr key={r.id} style={{ borderBottom:`1px solid ${C.border}` }}>
-                  <td style={{ padding:12 }}>{r.employeeName}</td>
-                  <td style={{ padding:12, fontFamily:"monospace" }}>{r.employeePersonalNumber}</td>
-                  <td style={{ padding:12 }}>{fmtDate(r.startDate)}</td>
-                  <td style={{ padding:12 }}>{fmtDate(r.endDate)}</td>
-                  <td style={{ padding:12, maxWidth:200 }}>{r.reason}</td>
+                  <td style={{ padding:12, color:C.primary }}>{r.employeeName}</td>
+                  <td style={{ padding:12, fontFamily:"monospace", color:C.primary }}>{r.employeePersonalNumber}</td>
+                  <td style={{ padding:12, color:C.primary }}>{fmtDate(r.startDate)}</td>
+                  <td style={{ padding:12, color:C.primary }}>{fmtDate(r.endDate)}</td>
+                  <td style={{ padding:12, maxWidth:200, color:C.primary }}>{r.reason}</td>
                   <td style={{ padding:12 }}><span style={S.badge(r.status)}>{r.status}</span></td>
                   <td style={{ padding:12 }}>
                     {r.status === "Pending" && (
@@ -1639,7 +2040,7 @@ const LeaveRequestsAdmin = ({ requests, onApprove, onDecline }) => {
   );
 };
 
-// ── REPORTS PAGE (enhanced) ───────────────────────────────────────────────────
+// ── REPORTS PAGE (enhanced, with PDF/Word export and section customization) ──
 const Reports = ({ employees }) => {
   const [filterDept, setFilterDept] = useState("All");
   const [filterGrade, setFilterGrade] = useState("All");
@@ -1662,7 +2063,6 @@ const Reports = ({ employees }) => {
     return deptMatch && gradeMatch && statusMatch;
   });
 
-  // CSV Export (unchanged – full data)
   const exportFullCSV = () => {
     const headers = [
       "Personal No", "First Name", "Middle Name", "Last Name", "Gender", "DOB",
@@ -1717,12 +2117,10 @@ const Reports = ({ employees }) => {
     URL.revokeObjectURL(url);
   };
 
-  // PDF Export – with coat of arms and all sections
   const generatePDF = async () => {
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
 
-    // Load coat of arms image as base64
     const loadImage = (url) => {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -1748,14 +2146,11 @@ const Reports = ({ employees }) => {
       imgData = null;
     }
 
-    // Helper to add a section with automatic page breaks
     const addSection = (title, contentLines) => {
       if (!contentLines || contentLines.length === 0) return;
-      // Check space
       if (y + (contentLines.length * 5) > 280) {
         doc.addPage();
         y = 20;
-        // repeat header on new page
         if (imgData) {
           doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
           doc.setFontSize(16);
@@ -1786,7 +2181,6 @@ const Reports = ({ employees }) => {
       });
     };
 
-    // Header
     if (imgData) {
       doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
       doc.setFontSize(16);
@@ -1817,7 +2211,6 @@ const Reports = ({ employees }) => {
       if (y > 250) {
         doc.addPage();
         y = 20;
-        // repeat header on new page
         if (imgData) {
           doc.addImage(imgData, 'PNG', 10, 10, 20, 20);
           doc.setFontSize(16);
@@ -1839,7 +2232,6 @@ const Reports = ({ employees }) => {
         y = 45;
       }
 
-      // Employee name as header
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.text(`${emp.firstName} ${emp.lastName} (${emp.personalNumber})`, 14, y);
@@ -1847,7 +2239,6 @@ const Reports = ({ employees }) => {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
 
-      // Personal Information
       if (sections.personal) {
         const lines = [
           `Gender: ${emp.gender || '—'} | DOB: ${emp.dob || '—'} | National ID: ${emp.nationalId || '—'}`,
@@ -1858,7 +2249,6 @@ const Reports = ({ employees }) => {
         addSection('Personal Information', lines);
       }
 
-      // Employment Details
       if (sections.employment) {
         const lines = [
           `Employment Date: ${emp.employmentDate || '—'} | Job Title: ${emp.jobTitle || '—'} | Grade: ${emp.jobGrade || '—'}`,
@@ -1870,7 +2260,6 @@ const Reports = ({ employees }) => {
         addSection('Employment Details', lines);
       }
 
-      // Place of Deployment
       if (sections.deployment) {
         const lines = [
           `County: ${emp.county || '—'} | Region: ${emp.region || '—'} | Work Station: ${emp.workStation || '—'}`,
@@ -1879,7 +2268,6 @@ const Reports = ({ employees }) => {
         addSection('Place of Deployment', lines);
       }
 
-      // Education
       if (sections.education && emp.education && emp.education.length) {
         const lines = emp.education.map(edu =>
           `  • ${edu.level || '—'} at ${edu.institution || '—'}, ${edu.fieldOfStudy || '—'} (${edu.yearCompleted || '—'})`
@@ -1887,7 +2275,6 @@ const Reports = ({ employees }) => {
         addSection('Education', lines);
       }
 
-      // Professional Bodies
       if (sections.professional && emp.professionalBodies && emp.professionalBodies.length) {
         const lines = emp.professionalBodies.map(pb =>
           `  • ${pb.bodyName || '—'} (${pb.membershipNo || '—'}) registered ${pb.registrationDate || '—'}`
@@ -1895,7 +2282,6 @@ const Reports = ({ employees }) => {
         addSection('Professional Bodies', lines);
       }
 
-      // Work Experience
       if (sections.workExperience && emp.workExperiences && emp.workExperiences.length) {
         const lines = emp.workExperiences.map(we =>
           `  • ${we.role || '—'} at ${we.employer || '—'} (${we.duration || '—'}) ${we.startDate || '—'} to ${we.endDate || 'Present'}`
@@ -1903,7 +2289,6 @@ const Reports = ({ employees }) => {
         addSection('Work Experience', lines);
       }
 
-      // Documents
       if (sections.documents && emp.documents && emp.documents.length) {
         const lines = emp.documents.map(doc =>
           `  • ${doc.file_name} (uploaded ${new Date(doc.uploaded_at).toLocaleDateString()})`
@@ -1911,13 +2296,12 @@ const Reports = ({ employees }) => {
         addSection('Documents', lines);
       }
 
-      y += 5; // space between employees
+      y += 5;
     });
 
     doc.save(`employee_report_${new Date().toISOString().slice(0,10)}.pdf`);
   };
 
-  // Word Export – with coat of arms embedded
   const generateWord = async () => {
     const loadImage = (url) => {
       return new Promise((resolve, reject) => {
@@ -1948,35 +2332,35 @@ const Reports = ({ employees }) => {
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
         <img src="${imgData}" width="60" height="60" />
         <div>
-          <div style="font-size:12px; color:#64748b;">Republic of Kenya</div>
+          <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
           <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style="font-size:13px; color:#64748b;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
         </div>
       </div>
     ` : `
       <div style="margin-bottom:20px;">
-        <div style="font-size:12px; color:#64748b;">Republic of Kenya</div>
+        <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
         <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-        <div style="font-size:13px; color:#64748b;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
       </div>
     `;
 
     const statsHtml = `
       <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:20px 0;">
-        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
-          <div style="font-size:12px; color:#64748b;">Total Employees</div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #d1d9e6;">
+          <div style="font-size:12px; color:#0d1f3c;">Total Employees</div>
           <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.length}</div>
         </div>
-        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
-          <div style="font-size:12px; color:#64748b;">Active</div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #d1d9e6;">
+          <div style="font-size:12px; color:#0d1f3c;">Active</div>
           <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "Active").length}</div>
         </div>
-        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
-          <div style="font-size:12px; color:#64748b;">Pending Review</div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #d1d9e6;">
+          <div style="font-size:12px; color:#0d1f3c;">Pending Review</div>
           <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "Pending Review").length}</div>
         </div>
-        <div style="background:#f9f9f9; padding:10px; border-radius:8px;">
-          <div style="font-size:12px; color:#64748b;">On Leave</div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #d1d9e6;">
+          <div style="font-size:12px; color:#0d1f3c;">On Leave</div>
           <div style="font-size:24px; font-weight:700; color:#0d1f3c;">${employees.filter(e => e.status === "On Leave").length}</div>
         </div>
       </div>
@@ -1987,58 +2371,58 @@ const Reports = ({ employees }) => {
 
       if (sections.personal) {
         sectionsHtml += `
-          <h4>Personal Information</h4>
-          <p><strong>Gender:</strong> ${emp.gender || '—'} | <strong>DOB:</strong> ${emp.dob || '—'} | <strong>National ID:</strong> ${emp.nationalId || '—'}</p>
-          <p><strong>KRA PIN:</strong> ${emp.kraPin || '—'} | <strong>NSSF:</strong> ${emp.nssfNo || '—'} | <strong>NHIF:</strong> ${emp.nhifNo || '—'}</p>
-          <p><strong>Phone:</strong> ${emp.phone || '—'} | <strong>Email:</strong> ${emp.email || '—'} | <strong>Marital Status:</strong> ${emp.maritalStatus || '—'}</p>
-          <p><strong>Nationality:</strong> ${emp.nationality || '—'}</p>
+          <h4 style="color:#0d1f3c;">Personal Information</h4>
+          <p style="color:#0d1f3c;"><strong>Gender:</strong> ${emp.gender || '—'} | <strong>DOB:</strong> ${emp.dob || '—'} | <strong>National ID:</strong> ${emp.nationalId || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>KRA PIN:</strong> ${emp.kraPin || '—'} | <strong>NSSF:</strong> ${emp.nssfNo || '—'} | <strong>NHIF:</strong> ${emp.nhifNo || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Phone:</strong> ${emp.phone || '—'} | <strong>Email:</strong> ${emp.email || '—'} | <strong>Marital Status:</strong> ${emp.maritalStatus || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Nationality:</strong> ${emp.nationality || '—'}</p>
         `;
       }
 
       if (sections.employment) {
         sectionsHtml += `
-          <h4>Employment Details</h4>
-          <p><strong>Employment Date:</strong> ${emp.employmentDate || '—'} | <strong>Job Title:</strong> ${emp.jobTitle || '—'} | <strong>Grade:</strong> ${emp.jobGrade || '—'}</p>
-          <p><strong>Employment Type:</strong> ${emp.employmentType || '—'} | <strong>Department:</strong> ${emp.department || '—'} | <strong>Station:</strong> ${emp.station || '—'}</p>
-          <p><strong>Years of Experience:</strong> ${emp.yearsOfExperience || '—'}</p>
-          <p><strong>Previous Employer:</strong> ${emp.previousEmployer || '—'} | <strong>Previous Role:</strong> ${emp.previousRole || '—'} | <strong>Duration:</strong> ${emp.previousDuration || '—'}</p>
-          <p><strong>Emergency Contact:</strong> ${emp.emergencyName || '—'} (${emp.emergencyRelationship || '—'}) - ${emp.emergencyPhone || '—'}</p>
+          <h4 style="color:#0d1f3c;">Employment Details</h4>
+          <p style="color:#0d1f3c;"><strong>Employment Date:</strong> ${emp.employmentDate || '—'} | <strong>Job Title:</strong> ${emp.jobTitle || '—'} | <strong>Grade:</strong> ${emp.jobGrade || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Employment Type:</strong> ${emp.employmentType || '—'} | <strong>Department:</strong> ${emp.department || '—'} | <strong>Station:</strong> ${emp.station || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Years of Experience:</strong> ${emp.yearsOfExperience || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Previous Employer:</strong> ${emp.previousEmployer || '—'} | <strong>Previous Role:</strong> ${emp.previousRole || '—'} | <strong>Duration:</strong> ${emp.previousDuration || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Emergency Contact:</strong> ${emp.emergencyName || '—'} (${emp.emergencyRelationship || '—'}) - ${emp.emergencyPhone || '—'}</p>
         `;
       }
 
       if (sections.deployment) {
         sectionsHtml += `
-          <h4>Place of Deployment</h4>
-          <p><strong>County:</strong> ${emp.county || '—'} | <strong>Region:</strong> ${emp.region || '—'} | <strong>Work Station:</strong> ${emp.workStation || '—'}</p>
-          <p><strong>Physical Address:</strong> ${emp.physicalAddress || '—'}</p>
+          <h4 style="color:#0d1f3c;">Place of Deployment</h4>
+          <p style="color:#0d1f3c;"><strong>County:</strong> ${emp.county || '—'} | <strong>Region:</strong> ${emp.region || '—'} | <strong>Work Station:</strong> ${emp.workStation || '—'}</p>
+          <p style="color:#0d1f3c;"><strong>Physical Address:</strong> ${emp.physicalAddress || '—'}</p>
         `;
       }
 
       if (sections.education && emp.education && emp.education.length) {
-        sectionsHtml += `<h4>Education</h4>`;
+        sectionsHtml += `<h4 style="color:#0d1f3c;">Education</h4>`;
         emp.education.forEach(edu => {
-          sectionsHtml += `<p>• ${edu.level || '—'} at ${edu.institution || '—'}, ${edu.fieldOfStudy || '—'} (${edu.yearCompleted || '—'})</p>`;
+          sectionsHtml += `<p style="color:#0d1f3c;">• ${edu.level || '—'} at ${edu.institution || '—'}, ${edu.fieldOfStudy || '—'} (${edu.yearCompleted || '—'})</p>`;
         });
       }
 
       if (sections.professional && emp.professionalBodies && emp.professionalBodies.length) {
-        sectionsHtml += `<h4>Professional Bodies</h4>`;
+        sectionsHtml += `<h4 style="color:#0d1f3c;">Professional Bodies</h4>`;
         emp.professionalBodies.forEach(pb => {
-          sectionsHtml += `<p>• ${pb.bodyName || '—'} (${pb.membershipNo || '—'}) registered ${pb.registrationDate || '—'}</p>`;
+          sectionsHtml += `<p style="color:#0d1f3c;">• ${pb.bodyName || '—'} (${pb.membershipNo || '—'}) registered ${pb.registrationDate || '—'}</p>`;
         });
       }
 
       if (sections.workExperience && emp.workExperiences && emp.workExperiences.length) {
-        sectionsHtml += `<h4>Work Experience</h4>`;
+        sectionsHtml += `<h4 style="color:#0d1f3c;">Work Experience</h4>`;
         emp.workExperiences.forEach(we => {
-          sectionsHtml += `<p>• ${we.role || '—'} at ${we.employer || '—'} (${we.duration || '—'}) ${we.startDate || '—'} to ${we.endDate || 'Present'}</p>`;
+          sectionsHtml += `<p style="color:#0d1f3c;">• ${we.role || '—'} at ${we.employer || '—'} (${we.duration || '—'}) ${we.startDate || '—'} to ${we.endDate || 'Present'}</p>`;
         });
       }
 
       if (sections.documents && emp.documents && emp.documents.length) {
-        sectionsHtml += `<h4>Documents</h4>`;
+        sectionsHtml += `<h4 style="color:#0d1f3c;">Documents</h4>`;
         emp.documents.forEach(doc => {
-          sectionsHtml += `<p>• ${doc.file_name} (uploaded ${new Date(doc.uploaded_at).toLocaleDateString()})</p>`;
+          sectionsHtml += `<p style="color:#0d1f3c;">• ${doc.file_name} (uploaded ${new Date(doc.uploaded_at).toLocaleDateString()})</p>`;
         });
       }
 
@@ -2046,7 +2430,7 @@ const Reports = ({ employees }) => {
         <div style="border:1px solid #d1d9e6; border-radius:8px; padding:16px; margin-bottom:20px; background:#fff;">
           <h3 style="margin:0 0 10px 0; color:#0d1f3c;">${emp.firstName} ${emp.lastName} (${emp.personalNumber})</h3>
           ${sectionsHtml}
-          <p><strong>Status:</strong> ${emp.status}</p>
+          <p style="color:#0d1f3c;"><strong>Status:</strong> ${emp.status}</p>
         </div>
       `;
     }).join('');
@@ -2064,10 +2448,10 @@ const Reports = ({ employees }) => {
         <body>
           <div class="container">
             ${headerHtml}
-            <h2>Comprehensive Employee Report</h2>
-            <p><strong>Filters:</strong> Department ${filterDept}, Grade ${filterGrade}, Status ${filterStatus}</p>
+            <h2 style="color:#0d1f3c;">Comprehensive Employee Report</h2>
+            <p style="color:#0d1f3c;"><strong>Filters:</strong> Department ${filterDept}, Grade ${filterGrade}, Status ${filterStatus}</p>
             ${statsHtml}
-            <h3>Employee Details (${filtered.length})</h3>
+            <h3 style="color:#0d1f3c;">Employee Details (${filtered.length})</h3>
             ${employeesHtml}
           </div>
         </body>
@@ -2083,7 +2467,6 @@ const Reports = ({ employees }) => {
     URL.revokeObjectURL(url);
   };
 
-  // Stats for display
   const total = employees.length;
   const active = employees.filter(e => e.status === "Active").length;
   const pending = employees.filter(e => e.status === "Pending Review").length;
@@ -2091,29 +2474,27 @@ const Reports = ({ employees }) => {
 
   return (
     <div>
-      <h2 style={{ fontSize:24, fontWeight:700, color:C.navy, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>Reports</h2>
+      <h2 style={{ fontSize:24, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif", marginBottom:20 }}>Reports</h2>
       
-      {/* Stats cards */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16, marginBottom:24 }}>
-        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontSize:12, color:C.muted }}>Total Employees</div>
-          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{total}</div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(13,31,60,0.08)" }}>
+          <div style={{ fontSize:12, color:C.primary }}>Total Employees</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.primary }}>{total}</div>
         </div>
-        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontSize:12, color:C.muted }}>Active</div>
-          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{active}</div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(13,31,60,0.08)" }}>
+          <div style={{ fontSize:12, color:C.primary }}>Active</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.primary }}>{active}</div>
         </div>
-        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontSize:12, color:C.muted }}>Pending Review</div>
-          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{pending}</div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(13,31,60,0.08)" }}>
+          <div style={{ fontSize:12, color:C.primary }}>Pending Review</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.primary }}>{pending}</div>
         </div>
-        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontSize:12, color:C.muted }}>On Leave</div>
-          <div style={{ fontSize:28, fontWeight:700, color:C.navy }}>{onLeave}</div>
+        <div style={{ background:C.white, borderRadius:8, padding:16, boxShadow:"0 2px 8px rgba(13,31,60,0.08)" }}>
+          <div style={{ fontSize:12, color:C.primary }}>On Leave</div>
+          <div style={{ fontSize:28, fontWeight:700, color:C.primary }}>{onLeave}</div>
         </div>
       </div>
 
-      {/* Filter and customize row */}
       <div style={{ ...S.card, marginBottom:20 }}>
         <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"flex-end" }}>
           <div style={{ minWidth:180 }}>
@@ -2138,7 +2519,7 @@ const Reports = ({ employees }) => {
             </select>
           </div>
           <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
-            <button onClick={() => setShowCustomize(true)} style={S.btn("outline")}>⚙️ Customize</button>
+            <button onClick={() => setShowCustomize(true)} style={S.btn("outline")}>Customize</button>
           </div>
         </div>
         <div style={{ display:"flex", gap:8, marginTop:16 }}>
@@ -2148,7 +2529,6 @@ const Reports = ({ employees }) => {
         </div>
       </div>
 
-      {/* Customization Modal */}
       {showCustomize && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -2156,18 +2536,18 @@ const Reports = ({ employees }) => {
           zIndex: 2000
         }}>
           <div style={{ background: C.white, borderRadius: 12, padding: 24, maxWidth: 400, width: '90%' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Customize Report Sections</h3>
-            <p style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color:C.primary, marginBottom: 16 }}>Customize Report Sections</h3>
+            <p style={{ fontSize: 13, color:C.primary, opacity:0.7, marginBottom: 16 }}>
               Select which sections to include in PDF and Word exports. CSV always includes all data.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label><input type="checkbox" checked={sections.personal} onChange={e => setSections({...sections, personal: e.target.checked})} /> Personal Information</label>
-              <label><input type="checkbox" checked={sections.employment} onChange={e => setSections({...sections, employment: e.target.checked})} /> Employment Details</label>
-              <label><input type="checkbox" checked={sections.deployment} onChange={e => setSections({...sections, deployment: e.target.checked})} /> Place of Deployment</label>
-              <label><input type="checkbox" checked={sections.education} onChange={e => setSections({...sections, education: e.target.checked})} /> Education</label>
-              <label><input type="checkbox" checked={sections.professional} onChange={e => setSections({...sections, professional: e.target.checked})} /> Professional Bodies</label>
-              <label><input type="checkbox" checked={sections.workExperience} onChange={e => setSections({...sections, workExperience: e.target.checked})} /> Work Experience</label>
-              <label><input type="checkbox" checked={sections.documents} onChange={e => setSections({...sections, documents: e.target.checked})} /> Documents</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.personal} onChange={e => setSections({...sections, personal: e.target.checked})} /> Personal Information</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.employment} onChange={e => setSections({...sections, employment: e.target.checked})} /> Employment Details</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.deployment} onChange={e => setSections({...sections, deployment: e.target.checked})} /> Place of Deployment</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.education} onChange={e => setSections({...sections, education: e.target.checked})} /> Education</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.professional} onChange={e => setSections({...sections, professional: e.target.checked})} /> Professional Bodies</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.workExperience} onChange={e => setSections({...sections, workExperience: e.target.checked})} /> Work Experience</label>
+              <label style={{ color:C.primary }}><input type="checkbox" checked={sections.documents} onChange={e => setSections({...sections, documents: e.target.checked})} /> Documents</label>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
               <button onClick={() => setShowCustomize(false)} style={S.btn("ghost")}>Cancel</button>
@@ -2177,16 +2557,15 @@ const Reports = ({ employees }) => {
         </div>
       )}
 
-      {/* Summary table */}
       <div style={S.card}>
-        <h3 style={{ fontSize:18, fontWeight:600, marginBottom:16 }}>Filtered Employees (Summary)</h3>
+        <h3 style={{ fontSize:18, fontWeight:600, color:C.primary, marginBottom:16 }}>Filtered Employees (Summary)</h3>
         {filtered.length === 0 ? (
-          <p style={{ color:C.muted, textAlign:"center", padding:20 }}>No employees match the selected filters.</p>
+          <p style={{ color:C.primary, opacity:0.7, textAlign:"center", padding:20 }}>No employees match the selected filters.</p>
         ) : (
           <div style={{ overflowX:"auto" }}>
             <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead>
-                <tr style={{ background:C.navy, color:C.white }}>
+                <tr style={{ background:C.primary, color:C.white }}>
                   <th style={{ padding:10, textAlign:"left" }}>Personal No.</th>
                   <th style={{ padding:10, textAlign:"left" }}>Name</th>
                   <th style={{ padding:10, textAlign:"left" }}>Department</th>
@@ -2197,15 +2576,15 @@ const Reports = ({ employees }) => {
               <tbody>
                 {filtered.slice(0, 100).map(e => (
                   <tr key={e.id} style={{ borderBottom:`1px solid ${C.border}` }}>
-                    <td style={{ padding:10 }}>{e.personalNumber}</td>
-                    <td style={{ padding:10 }}>{e.firstName} {e.lastName}</td>
-                    <td style={{ padding:10 }}>{e.department || '—'}</td>
-                    <td style={{ padding:10 }}>{e.jobGrade || '—'}</td>
+                    <td style={{ padding:10, color:C.primary, fontFamily:"monospace" }}>{e.personalNumber}</td>
+                    <td style={{ padding:10, color:C.primary }}>{e.firstName} {e.lastName}</td>
+                    <td style={{ padding:10, color:C.primary }}>{e.department || '—'}</td>
+                    <td style={{ padding:10, color:C.primary }}>{e.jobGrade || '—'}</td>
                     <td style={{ padding:10 }}><span style={S.badge(e.status)}>{e.status}</span></td>
                   </tr>
                 ))}
                 {filtered.length > 100 && (
-                  <tr><td colSpan={5} style={{ padding:10, textAlign:"center", color:C.muted }}>Showing first 100 records. Download CSV for full list.</td></tr>
+                  <tr><td colSpan={5} style={{ padding:10, textAlign:"center", color:C.primary, opacity:0.7 }}>Showing first 100 records. Download CSV for full list.</td></tr>
                 )}
               </tbody>
             </table>
@@ -2631,13 +3010,12 @@ export default function App() {
       emp.status = "Pending Review";
       emp.submittedBy = "self";
       await saveEmployee(emp);
-      // fetch the newly created employee with id
       const { data } = await supabase
         .from('employees')
         .select('*')
         .eq('personal_number', emp.personalNumber)
         .single();
-      return data; // return full employee object
+      return data;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -2662,33 +3040,30 @@ export default function App() {
     }
   };
 
- const approveLeave = async (id) => {
-  try {
-    // Get the leave request details
-    const request = leaveRequests.find(r => r.id === id);
-    if (!request) return;
+  const approveLeave = async (id) => {
+    try {
+      const request = leaveRequests.find(r => r.id === id);
+      if (!request) return;
 
-    // Update leave request status to Approved
-    const { error } = await supabase
-      .from('leave_requests')
-      .update({ status: 'Approved', reviewed_at: new Date().toISOString(), reviewed_by: admin?.id })
-      .eq('id', id);
-    if (error) throw error;
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({ status: 'Approved', reviewed_at: new Date().toISOString(), reviewed_by: admin?.id })
+        .eq('id', id);
+      if (error) throw error;
 
-    // Update the corresponding employee's status to 'On Leave'
-    const { error: empError } = await supabase
-      .from('employees')
-      .update({ status: 'On Leave' })
-      .eq('personal_number', request.employeePersonalNumber);
-    if (empError) throw empError;
+      const { error: empError } = await supabase
+        .from('employees')
+        .update({ status: 'On Leave' })
+        .eq('personal_number', request.employeePersonalNumber);
+      if (empError) throw empError;
 
-    showToast("Leave request approved. Employee is now On Leave.");
-    fetchUserData(session.user);
-    logActivity('Leave Approved', `Leave request ${id} approved, employee ${request.employeeName} marked as On Leave`);
-  } catch (error) {
-    showToast("Error approving leave", "error");
-  }
-};
+      showToast("Leave request approved. Employee is now On Leave.");
+      fetchUserData(session.user);
+      logActivity('Leave Approved', `Leave request ${id} approved, employee ${request.employeeName} marked as On Leave`);
+    } catch (error) {
+      showToast("Error approving leave", "error");
+    }
+  };
 
   const declineLeave = async (id) => {
     try {

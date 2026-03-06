@@ -121,7 +121,7 @@ const LoadingScreen = () => (
       <div style={{ width:64, height:64, border:`3px solid ${C.white}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite", position:"absolute", top:0, left:0 }} />
     </div>
     <div style={{ color:C.white, fontFamily:"'Playfair Display',serif", fontSize:18, animation:"pulse 1.5s ease-in-out infinite" }}>Initializing System...</div>
-    <div style={{ color:`${C.white}80`, fontSize:12 }}>Department of Public Communication · EMS</div>
+    <div style={{ color:`${C.white}80`, fontSize:12 }}>Directorate of Public Communication · EMS</div>
   </div>
 );
 
@@ -155,7 +155,7 @@ const LoginPage = ({ onLogin }) => {
           <div style={{ width:70, height:70, borderRadius:"50%", background:C.white, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
             <img src={`${process.env.PUBLIC_URL}/coat-of-arms.png`} alt="Coat of Arms" style={{ width:45, height:45 }} />
           </div>
-          <div style={{ color:C.white, fontSize:16, fontWeight:600, fontFamily:"'Playfair Display',serif" }}>Department of Public Communication</div>
+          <div style={{ color:C.white, fontSize:16, fontWeight:600, fontFamily:"'Playfair Display',serif" }}>Directorate of Public Communication</div>
         </div>
         <div style={{ padding:"30px 40px 40px" }}>
           <form onSubmit={handle}>
@@ -235,7 +235,7 @@ const AdminLayout = ({ children, admin, view, navigate, onLogout, toast, employe
         <div>
           <div style={{ fontSize:12, color:C.primary, letterSpacing:1, textTransform:"uppercase" }}>Republic of Kenya</div>
           <div style={{ fontSize:16, fontWeight:700, color:C.primary, fontFamily:"'Playfair Display',serif" }}>MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style={{ fontSize:13, color:C.primary, opacity:0.7 }}>State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style={{ fontSize:13, color:C.primary, opacity:0.7 }}>State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
         </div>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:16 }}>
           <div style={{ fontSize:14, color:C.primary }}>{new Date().toLocaleDateString("en-KE",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
@@ -1215,14 +1215,14 @@ const PublicRegistration = ({ onSubmit, employees }) => {
       doc.setFontSize(12);
       doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 35, 33);
+      doc.text('Directorate of Public Communication', 35, 33);
     } else {
       doc.setFontSize(16);
       doc.text('REPUBLIC OF KENYA', 14, 15);
       doc.setFontSize(12);
       doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 14, 28);
+      doc.text('Directorate of Public Communication', 14, 28);
     }
     doc.setFontSize(10);
     doc.text(`Form generated: ${new Date().toLocaleDateString()}`, 14, 40);
@@ -1241,14 +1241,14 @@ const PublicRegistration = ({ onSubmit, employees }) => {
           doc.setFontSize(12);
           doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 35, 33);
+          doc.text('Directorate of Public Communication', 35, 33);
         } else {
           doc.setFontSize(16);
           doc.text('REPUBLIC OF KENYA', 14, 15);
           doc.setFontSize(12);
           doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 14, 28);
+          doc.text('Directorate of Public Communication', 14, 28);
         }
         doc.setFontSize(10);
         doc.text('Form continued...', 14, 40);
@@ -1332,14 +1332,14 @@ const PublicRegistration = ({ onSubmit, employees }) => {
         <div>
           <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
           <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
         </div>
       </div>
     ` : `
       <div style="margin-bottom:20px;">
         <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
         <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
       </div>
     `;
 
@@ -1478,7 +1478,7 @@ const PublicRegistration = ({ onSubmit, employees }) => {
         </div>
         <div>
           <div style={{ color:C.white, fontSize:10, fontWeight:700, letterSpacing:2.5, textTransform:"uppercase" }}>Republic of Kenya · Ministry of ICT and Digital Economy</div>
-          <div style={{ color:C.white, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Department of Public Communication</div>
+          <div style={{ color:C.white, fontSize:16, fontWeight:700, fontFamily:"'Playfair Display',serif" }}>Directorate of Public Communication</div>
           <div style={{ color:`${C.white}80`, fontSize:11 }}>Employee Self‑Registration</div>
         </div>
       </div>
@@ -1743,14 +1743,14 @@ const LeaveRequestForm = ({ onSubmit }) => {
       doc.setFontSize(12);
       doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 35, 33);
+      doc.text('Directorate of Public Communication', 35, 33);
     } else {
       doc.setFontSize(16);
       doc.text('REPUBLIC OF KENYA', 14, 15);
       doc.setFontSize(12);
       doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 14, 28);
+      doc.text('Directorate of Public Communication', 14, 28);
     }
     doc.setFontSize(10);
     doc.text(`Form generated: ${new Date().toLocaleDateString()}`, 14, 40);
@@ -1777,14 +1777,14 @@ const LeaveRequestForm = ({ onSubmit }) => {
           doc.setFontSize(12);
           doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 35, 33);
+          doc.text('Directorate of Public Communication', 35, 33);
         } else {
           doc.setFontSize(16);
           doc.text('REPUBLIC OF KENYA', 14, 15);
           doc.setFontSize(12);
           doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 14, 28);
+          doc.text('Directorate of Public Communication', 14, 28);
         }
         doc.setFontSize(10);
         doc.text('Form continued...', 14, 40);
@@ -1830,14 +1830,14 @@ const LeaveRequestForm = ({ onSubmit }) => {
         <div>
           <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
           <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
         </div>
       </div>
     ` : `
       <div style="margin-bottom:20px;">
         <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
         <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
       </div>
     `;
 
@@ -2158,14 +2158,14 @@ const Reports = ({ employees }) => {
           doc.setFontSize(12);
           doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 35, 33);
+          doc.text('Directorate of Public Communication', 35, 33);
         } else {
           doc.setFontSize(16);
           doc.text('REPUBLIC OF KENYA', 14, 15);
           doc.setFontSize(12);
           doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 14, 28);
+          doc.text('Directorate of Public Communication', 14, 28);
         }
         doc.setFontSize(10);
         doc.text('Report continued...', 14, 40);
@@ -2188,14 +2188,14 @@ const Reports = ({ employees }) => {
       doc.setFontSize(12);
       doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 35, 33);
+      doc.text('Directorate of Public Communication', 35, 33);
     } else {
       doc.setFontSize(16);
       doc.text('REPUBLIC OF KENYA', 14, 15);
       doc.setFontSize(12);
       doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
       doc.setFontSize(10);
-      doc.text('Department of Public Communication', 14, 28);
+      doc.text('Directorate of Public Communication', 14, 28);
     }
     doc.setFontSize(10);
     doc.text(`Report Generated: ${new Date().toLocaleDateString()}`, 14, 40);
@@ -2218,14 +2218,14 @@ const Reports = ({ employees }) => {
           doc.setFontSize(12);
           doc.text('AND THE DIGITAL ECONOMY (MICDE)', 35, 27);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 35, 33);
+          doc.text('Directorate of Public Communication', 35, 33);
         } else {
           doc.setFontSize(16);
           doc.text('REPUBLIC OF KENYA', 14, 15);
           doc.setFontSize(12);
           doc.text('MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)', 14, 22);
           doc.setFontSize(10);
-          doc.text('Department of Public Communication', 14, 28);
+          doc.text('Directorate of Public Communication', 14, 28);
         }
         doc.setFontSize(10);
         doc.text('Report continued...', 14, 40);
@@ -2334,14 +2334,14 @@ const Reports = ({ employees }) => {
         <div>
           <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
           <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+          <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
         </div>
       </div>
     ` : `
       <div style="margin-bottom:20px;">
         <div style="font-size:12px; color:#0d1f3c;">Republic of Kenya</div>
         <div style="font-size:16px; font-weight:700; color:#0d1f3c;">MINISTRY OF INFORMATION, COMMUNICATIONS AND THE DIGITAL ECONOMY (MICDE)</div>
-        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Department of Public Communication</div>
+        <div style="font-size:13px; color:#0d1f3c; opacity:0.7;">State Department of Broadcasting & Telecommunication · Directorate of Public Communication</div>
       </div>
     `;
 
